@@ -1,0 +1,26 @@
+{
+  "name": "squadtime",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "types": "node scripts/generate-types.mjs",
+    "typecheck": "tsc --noEmit",
+    "build:test": "esbuild backend/src/index.ts --bundle --format=esm --outfile=.local/worker.mjs",
+    "test": "npm run build:test && node --test test/*.test.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "check": "npm run typecheck && npm test && npm run check:secrets"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.1",
+    "miniflare": "5.20261012.1-beta",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "@types/node": "26.6.5"
+  }
+}
