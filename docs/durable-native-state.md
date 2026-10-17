@@ -18,7 +18,7 @@ Validation state is recorded in [validation.md](validation.md). The bridge proto
 
 ## Boundaries and open work
 
-- The two-peer fixture is synthetic. The P-256 device-approval proof is not yet bound to an MLS credential or group membership.
+- The two-peer fixture is synthetic. A separate [local binding proof](mls-device-binding.md) now binds native P-256 approval to actual MLS identities, a KeyPackage and initial group admission, then passes the joined snapshot into this vault. Its pending admission is volatile and is not atomically committed with vault creation; independently running device enrollment remains open.
 - The bridge rejects MLS control traffic. Authorized group creation, sends, membership changes and their application side effects need a reviewed transaction path.
 - Guardian policy, user identity, onboarding, recovery and key lifecycle are not implemented by this proof. Vault/key creation requires a single provisioning owner; atomic cross-process key provisioning is not established.
 - SQLite row encryption does not stop deletion, database replacement, restoration of an older valid encrypted row, or a malicious rollback. Revision CAS coordinates writers that share the same current database; it is not a trusted monotonic counter across restore or devices.

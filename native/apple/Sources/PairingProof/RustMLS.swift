@@ -37,7 +37,7 @@ public enum RustMLS {
         return result
     }
 
-    private static func call<T: Decodable>(_ request: [String: String]) throws -> T {
+    static func call<T: Decodable>(_ request: [String: Any]) throws -> T {
         let input = try JSONSerialization.data(withJSONObject: request, options: [.sortedKeys])
         guard input.count <= 16 * 1024 * 1024 else { throw VaultError.malformed }
         var output: UnsafeMutablePointer<UInt8>?

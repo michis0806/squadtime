@@ -183,3 +183,8 @@ class PendingPairing(private val request: PairingRequest, private val trustedApp
         return true
     }
 }
+
+// Shared proof helpers preserve the existing v1 wire format and behavior.
+internal fun validateDevicePublicKey(value: String) { publicKey(value) }
+internal fun verifyDeviceSignature(key: String, transcript: ByteArray, signature: String): Boolean =
+    verify(key, transcript, signature)

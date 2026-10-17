@@ -28,7 +28,7 @@ object NativeMls {
         if (result.size > maximum) { result.fill(0); error("Native MLS operation rejected") }
         return result
     }
-    private fun call(json: JSONObject): JSONObject {
+    internal fun call(json: JSONObject): JSONObject {
         val input = json.toString().toByteArray(Charsets.UTF_8)
         try {
             require(input.size <= 16 * 1024 * 1024)
@@ -37,8 +37,8 @@ object NativeMls {
             finally { output.fill(0) }
         } finally { input.fill(0) }
     }
-    fun fixture(): MlsFixture {
-        val json = call(JSONObject().put("op", "fixture"))
+    fun fixture(): MlsFixture = fixtureResult(call(JSONObject().put("op", "fixture")))
+    internal fun fixtureResult(json: JSONObject): MlsFixture {
         val packets = json.getJSONArray("packets")
         val expected = json.getJSONArray("expected")
         require(packets.length() == 2 && expected.length() == 2)

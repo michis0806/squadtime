@@ -44,8 +44,10 @@ A recipient needs the exact locally pending request and a separately trusted,
 pinned approver public key. An approval's self-declared public key establishes no
 trust. The in-memory coordinator consumes pending requests once, only after a
 successful check. Invalid signatures and expired approvals do not consume the
-pending request. Restart-persistent replay protection, authentic initial pin
-verification, account/guardian authorization and MLS binding remain unimplemented.
+pending request. For the original Pairing v1 flow, restart-persistent replay protection, authentic
+initial pin verification, account/guardian authorization and MLS binding remain
+unimplemented. The separate local MLS binding proof below does not change that
+v1 contract or provide independent-device onboarding.
 
 Instrumentation verifies the independent public Node fixture, transcript bytes,
 signatures, mutations of all security-sensitive fields, expiry boundaries,
@@ -175,6 +177,49 @@ This is an actual process restart proof when executed, not a power-loss durabili
 or full rollback/recovery guarantee. The two phases must use the same installed
 host data; Gradle connected-test cleanup can remove it between runs.
 
+## Local device-key binding to MLS admission
+
+`MlsEnrollment.kt` adds a separate proof without changing Pairing v1 wire formats.
+It binds real AndroidKeyStore P-256 request and approval signatures to an exact
+MLS KeyPackage and group context through the actual Rust JNI implementation.
+The canonical domain-separated UTF-8 transcripts bind the pending ID, group ID,
+KeyPackage digest, joiner/admin MLS identity digests, device key, independently
+pinned approver key and a 300-second lifetime. The approval additionally binds the
+request transcript digest. Native code validates exact transcript bytes, canonical
+Base64, expected keys, context and timestamps before signing. Device and approver
+keys must differ. Approval requires `userConfirmed=true` and the native approver
+key must match the independently supplied pin; no blind transcript signer or
+consent UI is provided.
+
+The precise contract and limitations are described in
+[mls-device-binding.md](mls-device-binding.md). **This is a local, synthetic,
+in-process binding proof, not independent-device onboarding.** Rust creates and
+holds both the synthetic admin and joining member. It checks stored trusted local
+pending state, exact KeyPackage/group binding, both P-256 signatures and the
+pinned existing admin MLS identity before actual Add/Welcome processing. The
+public group ID alone is not a trust anchor. This helper cannot establish trusted
+cross-device first contact, remote Welcome authenticity or account/Guardian
+membership policy. The coordinator is one-shot and memory-only; pending state
+and admission replay protection are not persistent across process restarts.
+
+`PendingEnrollment.completeIntoVault` writes the joined snapshot through the
+existing encrypted `MlsVault`, after which real post-join MLS packets use its
+atomic receive/inbox path. Rust admission consumption and initial vault creation
+are separate operations. If vault creation fails after Rust completes, admission
+is already consumed and is not rolled back. A regression checks that this failure
+does not overwrite an existing vault or falsely permit admission retry. This is
+not a transaction spanning admission and storage. Secret fixture bytes remain
+transient and are cleared when the proof result is closed; no private snapshot
+is exported. `close()` cancels any still-pending Rust admission.
+
+Instrumentation exports only public synthetic evidence to
+`files/enrollment-native-export.json`: pending/group IDs, KeyPackage, exact request
+and approval transcripts, DER signatures, device key, trusted approver key and
+injected clock. Byte-valued fields are canonical Base64. The export contains no
+MLS snapshot, private key, packets or plaintext and can be independently checked
+with the repository's Node verifier. It remains app-private and is removed with
+scoped proof-host cleanup.
+
 ## Validation status
 
 Local APK and instrumentation APK builds passed on 2026-10-17. Five connected
@@ -226,3 +271,34 @@ ELF inspection confirmed the JNI library's LOAD segments have alignment `0x4000`
 (16 KiB). No snapshots or private keys were exported. The scoped test and host
 packages were uninstalled and the task-owned emulator was shut down after
 validation; all generated host build outputs remain ignored.
+
+
+### Local MLS binding validation (2026-10-17)
+
+The final Rust enrollment library was repackaged into the host before runtime
+validation. Direct instrumentation on `emulator-5580`, Android API 37,
+`arm64-v8a`, passed **19 tests** with zero failures or skips: five unchanged
+Pairing v1 tests, eight encrypted-vault tests, and six new local enrollment tests.
+The new tests covered actual signed Add/Welcome admission followed by both
+post-join packets being decrypted through the encrypted vault; Rust rejection of
+another KeyPackage, group, pending handle and untrusted request/approval signers;
+native rejection of altered context, transcript and pin fields; consent,
+time boundaries, replay and cancellation; and the explicitly non-atomic
+admission/vault-creation failure case. Invalid substitutions did not consume the
+authentic pending context. Successful admission was one-shot in both Rust and
+the native coordinator.
+
+The instrumentation generated public-only signature evidence and transferred it
+to ignored `.local/enrollment-android-export.json`. Independent Node/OpenSSL
+verification passed for both native signatures and exact transcript bindings;
+the public-only evidence is also checked in as
+`native/fixtures/enrollment-v1.json`. All synthetic device signing keys and vault keys/databases created by the tests
+were deleted in test cleanup. No private key or MLS snapshot was exported. These
+results establish the bounded local binding proof described above, not
+independent-device onboarding, physical-keystore assurance, product membership
+policy or production E2EE.
+
+The scoped host/test packages were uninstalled and the task-owned emulator was
+shut down after public evidence verification. The vault schema did not change in
+this increment, so the earlier cross-process restart result remains historical
+evidence and was not rerun or represented as a new enrollment restart guarantee.

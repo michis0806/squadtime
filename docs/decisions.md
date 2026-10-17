@@ -37,7 +37,7 @@ Statuses refer to the current project state. “Accepted” means a direction ha
 ## Open
 
 - **Key lifecycle:** generation, device binding, rotation, backup, recovery and deletion.
-- **Device approval and membership:** how a new device is authenticated, who authorizes members and how revocation is enforced for remaining devices.
+- **Device approval and membership:** the [local binding proof](mls-device-binding.md) ties native P-256 signatures to exact MLS identities, KeyPackage and initial group admission. Independent-device trust bootstrap, account/Guardian authority, durable membership transactions and revocation remain open.
 - **Past data after revocation:** revoked clients must not read future content after rotation. A client cannot forget content it has already decrypted or stored; past access cannot be undone.
 - **Guardian model:** explicit, limited and revocable access and recovery rights that preserve separation between family and group areas.
 - **Malicious server and key substitution:** how clients detect and verify that keys have not been replaced by the server.

@@ -3,7 +3,8 @@
 use crate::ApplicationReceiver;
 use base64ct::{Base64, Encoding};
 use mls_rs::{
-    client_builder::MlsConfig,
+    client_builder::{BaseConfig, WithCryptoProvider, WithGroupStateStorage, WithIdentityProvider},
+    group::Group,
     identity::{basic::BasicCredential, CredentialType, SigningIdentity},
     mls_rs_codec::{MlsDecode, MlsEncode},
     time::MlsTime,
@@ -28,6 +29,13 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 pub const MAX_CALL_BYTES: usize = 16 * 1024 * 1024;
 const MAX_SNAPSHOT_BYTES: usize = 8 * 1024 * 1024;
 const MAX_PACKET_BYTES: usize = 1024 * 1024;
+mod enrollment;
+
+type BridgeConfig = WithCryptoProvider<
+    AwsLcCryptoProvider,
+    WithIdentityProvider<Pins, WithGroupStateStorage<Store, BaseConfig>>,
+>;
+
 const SUITE: CipherSuite = CipherSuite::CURVE25519_AES128;
 
 #[derive(Debug)]
@@ -39,7 +47,34 @@ type Result<T> = std::result::Result<T, BridgeRejected>;
 #[serde(tag = "op", rename_all = "lowercase", deny_unknown_fields)]
 enum Command {
     Fixture {},
-    Receive { snapshot: String, packet: String },
+    Enrollmentprepare {
+        #[serde(rename = "devicePublicKey")]
+        device_public_key: String,
+        #[serde(rename = "approverPublicKey")]
+        approver_public_key: String,
+        now: u64,
+    },
+    Enrollmentcomplete {
+        #[serde(rename = "pendingId")]
+        pending_id: String,
+        #[serde(rename = "groupId")]
+        group_id: String,
+        #[serde(rename = "keyPackage")]
+        key_package: String,
+        #[serde(rename = "requestSignature")]
+        request_signature: String,
+        #[serde(rename = "approvalSignature")]
+        approval_signature: String,
+        now: u64,
+    },
+    Enrollmentcancel {
+        #[serde(rename = "pendingId")]
+        pending_id: String,
+    },
+    Receive {
+        snapshot: String,
+        packet: String,
+    },
 }
 #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(deny_unknown_fields)]
@@ -57,6 +92,8 @@ struct Snapshot {
     sender_identity: String,
     state: String,
     epochs: Vec<SavedEpoch>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    authorization: Option<enrollment::Binding>,
 }
 #[derive(Serialize, Zeroize, ZeroizeOnDrop)]
 struct FixtureReply {
@@ -218,7 +255,7 @@ fn client(
     secret: SignatureSecretKey,
     pins: Pins,
     store: Store,
-) -> Client<impl MlsConfig> {
+) -> Client<BridgeConfig> {
     Client::builder()
         .identity_provider(pins)
         .group_state_storage(store)
@@ -271,9 +308,20 @@ fn fixture() -> Result<Zeroizing<Vec<u8>>> {
         .build()
         .map_err(|_| BridgeRejected)?;
     sender.apply_pending_commit().map_err(|_| BridgeRejected)?;
-    let (mut receiver, _) = bob
+    let (receiver, _) = bob
         .join_group(None, &commit.welcome_messages[0], None)
         .map_err(|_| BridgeRejected)?;
+    finish_fixture(sender, receiver, alice_id, bob_id, bob_secret, store, None)
+}
+fn finish_fixture(
+    mut sender: Group<BridgeConfig>,
+    mut receiver: Group<BridgeConfig>,
+    alice_id: SigningIdentity,
+    bob_id: SigningIdentity,
+    bob_secret: SignatureSecretKey,
+    store: Store,
+    authorization: Option<enrollment::Binding>,
+) -> Result<Zeroizing<Vec<u8>>> {
     receiver.write_to_storage().map_err(|_| BridgeRejected)?;
     let mut snapshot = Snapshot {
         version: 1,
@@ -283,6 +331,7 @@ fn fixture() -> Result<Zeroizing<Vec<u8>>> {
         sender_identity: encode_identity(&alice_id)?,
         state: String::new(),
         epochs: vec![],
+        authorization,
     };
     let mut reply = FixtureReply {
         snapshot: String::new(),
@@ -325,6 +374,9 @@ fn receive(snapshot: &str, packet: &str) -> Result<Zeroizing<Vec<u8>>> {
     }
     let own = identity(&snapshot.own_identity)?;
     let sender = identity(&snapshot.sender_identity)?;
+    if let Some(binding) = &snapshot.authorization {
+        enrollment::verify_snapshot(binding, &snapshot.group_id, &own, &sender)?;
+    }
     if own == sender {
         return Err(BridgeRejected);
     }
@@ -413,6 +465,27 @@ pub fn call(input: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
     match &command {
         Command::Fixture {} => fixture(),
         Command::Receive { snapshot, packet } => receive(snapshot, packet),
+        Command::Enrollmentprepare {
+            device_public_key,
+            approver_public_key,
+            now,
+        } => enrollment::prepare(device_public_key, approver_public_key, *now),
+        Command::Enrollmentcomplete {
+            pending_id,
+            group_id,
+            key_package,
+            request_signature,
+            approval_signature,
+            now,
+        } => enrollment::complete(
+            pending_id,
+            group_id,
+            key_package,
+            request_signature,
+            approval_signature,
+            *now,
+        ),
+        Command::Enrollmentcancel { pending_id } => enrollment::cancel(pending_id),
     }
 }
 

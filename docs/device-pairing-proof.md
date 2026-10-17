@@ -1,6 +1,6 @@
 # Native device approval: limited protocol proof v1
 
-This experiment checks approval for a **native P-256 device key**. It is not finished account registration, proof of guardianship, verified device attestation or enrollment into an MLS group. A camera feature or complete QR user flow is outside this technical proof.
+This experiment checks approval for a **native P-256 device key**. It is not finished account registration, proof of guardianship, verified device attestation or enrollment into an MLS group. A camera feature or complete QR user flow is outside this technical proof. The separate [local MLS binding proof](mls-device-binding.md) adds native signatures around actual MLS admission; its transcript domains and scope differ from pairing v1.
 
 ## Trust boundary
 

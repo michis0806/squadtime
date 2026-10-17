@@ -165,8 +165,11 @@ Secure Enclave/Android Keystore support for the chosen suite.
 
 The mutable approval/revocation registry, signed approval transport,
 permission/parent role enforcement, key transparency or consistency checks,
-key rotation and trusted account roots are **not implemented**. Static test
-pins only establish the narrow substitution rejection tested above.
+key rotation and trusted account roots are **not implemented**. The original static test
+pins establish the narrow substitution rejection tested above. A later
+[local native binding proof](mls-device-binding.md) now verifies native P-256
+signatures over actual MLS identities, KeyPackage and initial admission; both MLS
+participants still run in one process, with no distributed authorization ledger.
 
 ## Recovery, deletion and remaining security work
 
@@ -188,11 +191,14 @@ Before production: complete and review the trust model, bind approvals into
 membership enforcement, test secure persistent storage and crash recovery,
 review dependencies/advisories and the pinned toolchain, fuzz untrusted inputs,
 limit message and group sizes, and obtain an independent application/security
-review. Swift/Kotlin bindings, iOS/Android builds/device tests, inter-library
-interop, state migration, encrypted recovery and malicious-member policy tests
-remain open. The interactive harness was also verified through the deployed DEV relay on
-2026-10-17; see docs/validation.md for scope. Native apps remain unconnected, and this must
-not be presented as app-wide E2EE already working.
+review. The later [native bridge](native-mls-bridge.md),
+[encrypted vault](durable-native-state.md) and [local admission binding](mls-device-binding.md)
+have Swift/Kotlin simulator/emulator evidence. Physical-device execution,
+independent-device enrollment, inter-library interoperability, state migration,
+encrypted recovery and full malicious-member policy tests remain open. The
+interactive host harness was also verified through the deployed DEV relay on
+2026-10-17; see [validation.md](validation.md) for scope. Native transport remains
+unconnected, and this must not be presented as app-wide E2EE already working.
 
 ## Interactive relay harness
 
