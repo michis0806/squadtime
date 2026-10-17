@@ -1,21 +1,23 @@
 # Squadtime
 
-Gemeinsame Spielzeiten für Freundesgruppen, mit einem von Eltern gesetzten Rahmen.
+Shared play sessions for friend groups, within boundaries set by parents.
 
-**Entwicklungsstand:** technisches Fundament und Protokoll-Erprobung. Kein fertiges Produkt und keine Freigabe für echte Kinder-/Nutzerdaten. Die native iOS-/Android-App, Geräte-Kopplung, Guardian-Berechtigungen und Wiederherstellung sind noch nicht implementiert.
+**Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. The native iOS and Android apps are not implemented. A limited native device-signing and approval proof now has simulator and emulator evidence; it is neither complete enrollment nor MLS integration. Guardian permissions and recovery are also open. See [native/README.md](native/README.md) and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
 
-## Bestandteile
+## Components
 
-- `backend/`: Cloudflare-Worker mit einem authentisierten Relay für undurchsichtige verschlüsselte Ereignisse; D1-Migration.
-- `api/openapi.yaml`: gemeinsamer API-Vertrag des DEV-Relays.
-- `crypto/mls-spike/`: ausführbare MLS-Protokolltests mit frisch erzeugten Testidentitäten.
-- `docs/architecture.md`, `docs/threat-model.md`, `docs/decisions.md`: Architektur, Grenzen und offene Entscheidungen.
-- `docs/crypto-spike.md`: Bibliotheksvergleich, Nachweise und bekannte Integrationsgrenzen.
-- `squadtime-konzept.md`: ursprüngliches Produktkonzept; bei technischen Abweichungen gelten die neueren Architekturentscheidungen.
+- `backend/`: Cloudflare Worker with an authenticated relay for opaque encrypted events; D1 migration.
+- `api/openapi.yaml`: shared API contract for the DEV relay.
+- `crypto/mls-spike/`: runnable MLS protocol tests with freshly generated test identities.
+- `docs/architecture.md`, `docs/threat-model.md`, `docs/decisions.md`: architecture, boundaries and open decisions.
+- `docs/crypto-spike.md`: library comparison, evidence and known integration limits.
+- `docs/mls-state-transactions.md`: application-message receive with staged MLS state and its transaction boundaries.
+- `native/README.md`, `docs/device-pairing-proof.md`: implemented device-approval proof and its limited scope.
+- `squadtime-konzept.md`: original product concept; newer architecture decisions govern technical deviations.
 
-## Lokal starten
+## Run locally
 
-Voraussetzungen: Node.js 22 oder neuer und npm. Rust 1.90.0 samt C-Compiler wird nur für die separate MLS-Erprobung gebraucht.
+Requirements: Node.js 22 or later and npm. Rust 1.90.0 and a C compiler are needed only for the separate MLS evaluation.
 
 ```sh
 npm ci
@@ -27,27 +29,29 @@ npx wrangler d1 migrations apply DB --local
 npm run dev
 ```
 
-`GET /health` ist öffentlich. Gruppen-Routen benötigen ein vorab eingerichtetes Testgerät mit einem zufälligen 256-Bit-Bearer-Token. Nur der SHA-256-Hash dieses Tokens steht in D1; die Gültigkeit ist begrenzt. Es gibt keine öffentliche Registrierung oder Bootstrap-API.
+`GET /health` is public. Group routes require a pre-provisioned test device with a random 256-bit bearer token. Only the token’s SHA-256 hash is stored in D1; the token has limited validity. There is no public registration or bootstrap API.
 
-## Relay-Grenzen
+## Relay boundaries
 
-Das Relay kann Berechtigungen, Format, Größe und konkurrierende Schreibzugriffe prüfen. Es kann nicht beweisen, dass ein Base64-Payload wirklich verschlüsselt oder ein MLS-Mitgliedschaftswechsel erlaubt ist. Diese Prüfungen müssen die autorisierten Clients übernehmen.
+The relay can check authorization, format, size and concurrent writes. It cannot prove that a Base64 payload is actually encrypted or that an MLS membership change is authorized. Authorized clients must perform those checks.
 
-Ereignisse bleiben maximal sieben Tage über die API abrufbar. Stündliche Bereinigung entfernt bis zu 1.000 abgelaufene Datensätze pro Lauf; Provider-Backups können länger bestehen. Die Gruppenrevision bleibt erhalten. Fehlende Historie führt zu HTTP 410 und erfordert einen noch zu implementierenden autorisierten Zustandsabgleich. Dies ist kein dauerhaftes Kalender-Backup.
+Events remain available through the API for at most seven days. Hourly cleanup removes up to 1,000 expired records per run; provider backups may persist longer. The group revision is retained. Missing history returns HTTP 410 and requires an authorized state-resynchronization flow, which is not yet implemented. This is not a durable calendar backup.
 
-Der Gruppenverlauf liefert maximal 100 Ereignisse pro Seite. Wiederholungen eines identischen Ereignisses sind während seiner Aufbewahrung idempotent. Nach Ablauf muss der Client mit einer aktuellen Revision und neuem Ereignis planen. Die Serverrevision schützt vor normalen Schreibkonflikten, nicht vor einem böswilligen Server.
+The group history returns at most 100 events per page. Identical event retries are idempotent during the event’s retention period. After expiry, the client must use the current revision and create a new event. The server revision protects against ordinary write conflicts, not a malicious server.
 
-## Cloudflare-Entwicklung
+For MLS application messages, `ApplicationReceiver` stages candidate state and persists it only after successful authentication and policy checks. Under atomic-storage and single-writer assumptions, this addresses the observed generation consumption in direct raw receive. It does not provide a durable mobile inbox or crash, rollback or multi-process safety. See [docs/mls-state-transactions.md](docs/mls-state-transactions.md) for details and open limits.
 
-Die öffentliche `wrangler.jsonc` enthält ausschließlich eine lokale Platzhalter-Datenbank. Das Remote-Setup ist in [docs/development.md](docs/development.md) beschrieben. Deployment-Konfiguration, Zugangsdaten und lokale Zustände bleiben außerhalb von Git. Worker-Observability ist im DEV-Setup deaktiviert; der Anwendungscode protokolliert keine Request-Header oder Inhalte.
+## Cloudflare development
 
-## Veröffentlichung und Prüfung
+The public `wrangler.jsonc` contains only a local placeholder database. The remote setup is described in [docs/development.md](docs/development.md). Deployment configuration, credentials and local state stay outside Git. Worker observability is disabled in DEV; application code does not log request headers or content.
+
+## Publication and checks
 
 ```sh
 npm run check:secrets
 npm run check:secrets -- --staged
 ```
 
-Der lokale Guard prüft typische Geheimnisformate und Dateinamen; er ist keine Garantie. Zusätzlich läuft Gitleaks in GitHub Actions. Die CI führt Backend- und MLS-Tests aus. Es werden keine Deployment-Secrets in GitHub benötigt.
+The local guard checks common secret formats and filenames; it is not a guarantee. Gitleaks also runs in GitHub Actions. CI runs the backend and MLS tests. A separate native workflow performs build-only checks with Apple Xcode 26.3 on macOS 15 and Android JDK 17 on Ubuntu 24.04; native runtime test results are local. No deployment secrets are needed in GitHub.
 
-Öffentlicher Quellcode ermöglicht Prüfung, ersetzt aber keinen unabhängigen Sicherheitsaudit. Eine Open-Source-Lizenz ist noch nicht festgelegt; öffentliche Sichtbarkeit allein erteilt keine allgemeine Nutzungslizenz.
+Public source enables inspection but does not replace an independent security audit. An open-source license has not yet been chosen; public visibility alone does not grant a general license.

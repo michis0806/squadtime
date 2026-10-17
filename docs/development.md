@@ -1,12 +1,12 @@
-# Entwicklungsbetrieb
+# Development operations
 
-## Konten und lokale Konfiguration
+## Accounts and local configuration
 
-Cloudflare-Zugang erfolgt lokal über Wrangler OAuth (`npx wrangler login`). Für automatisches Deployment ist später ein begrenzter API-Token möglich; er gehört in einen Secret Store, nicht ins Repository. Kein automatisches Deployment ist eingerichtet.
+Cloudflare access is handled locally through Wrangler OAuth (`npx wrangler login`). A limited API token may be used for automated deployment later; it belongs in a secret store, not the repository. No automated deployment is configured.
 
-Vor Remote-Befehlen mit `npx wrangler whoami` den richtigen Account prüfen. Account-ID und Datenbank-ID sind keine Authentisierungsgeheimnisse, bleiben hier aber aus Gründen der Trennung von Quellcode und Betrieb lokal.
+Before remote commands, verify the correct account with `npx wrangler whoami`. Account and database IDs are not authentication secrets, but keep them local to separate source code from operations.
 
-Eine neue, dedizierte Datenbank `squadtime-dev` mit `--jurisdiction=eu` anlegen. Danach die nicht geheimen IDs in den Umgebungsvariablen `CLOUDFLARE_ACCOUNT_ID` und `SQUADTIME_D1_ID` bereitstellen und ausführen:
+Create a new, dedicated `squadtime-dev` database with `--jurisdiction=eu`. Then set the non-secret IDs in the `CLOUDFLARE_ACCOUNT_ID` and `SQUADTIME_D1_ID` environment variables and run:
 
 ```sh
 node scripts/configure-dev.mjs
@@ -14,11 +14,11 @@ npx wrangler d1 migrations apply DB --remote --config .local/wrangler.json
 npx wrangler deploy --config .local/wrangler.json
 ```
 
-`configure-dev.mjs` schreibt eine ignorierte Datei mit Zugriffsmodus 0600. Es überschreibt keine vorhandene Remote-Konfiguration. Ohne explizite IDs wird abgebrochen. Öffentliche Konfigurationen mit der Null-ID dürfen nicht für ein Remote-Deployment verwendet werden.
+`configure-dev.mjs` writes an ignored file with access mode 0600. It does not overwrite an existing remote configuration. It aborts without explicit IDs. Public configurations containing the null ID must not be used for remote deployment.
 
-EU-Jurisdiktion begrenzt die D1-Datenbank; sie macht die gesamte Worker-Verarbeitung nicht automatisch EU-exklusiv. Keine Inhaltsdaten, Request-Bodys oder Authorization-Header protokollieren.
+EU jurisdiction limits the D1 database; it does not automatically make all Worker processing EU-exclusive. Do not log content, request bodies or Authorization headers.
 
-## Echter MLS-Transporttest
+## Real MLS transport test
 
 ```sh
 cd crypto/mls-spike
@@ -27,16 +27,16 @@ cd ../..
 node scripts/smoke-remote.mjs
 ```
 
-Dafür `SQUADTIME_DEV_URL` auf die zuvor bestätigte HTTPS-workers.dev-Adresse des DEV-Workers setzen. Das Skript prüft den lokalen Konfigurationsnamen, erzeugt einmalige Geräte-Tokens nur im Speicher und richtet kurzlebige synthetische Testdatensätze in der DEV-Datenbank ein. SQL-Dateien enthalten nur Hashes und technische IDs und werden nach Nutzung gelöscht. Keine Tokens gelangen in Kommandozeilen oder Logs.
+Set `SQUADTIME_DEV_URL` to the previously confirmed HTTPS workers.dev address of the DEV Worker. The script checks the local configuration name, creates one-time device tokens only in memory and provisions short-lived synthetic test records in the DEV database. SQL files contain only hashes and technical IDs and are deleted after use. Tokens are not put in command lines or logs.
 
-Ein separater Rust-Prozess erzeugt eine echte MLS-Nachricht, der Test sendet ihren Chiffretext durch das Relay, liest ihn als berechtigter Empfänger zurück und lässt ihn im Rust-Prozess entschlüsseln. Zusätzlich werden fehlende Anmeldung, fremde Mitgliedschaft und Widerruf geprüft. Die Testdaten werden im `finally`-Block entfernt. Bei Abbruch/Netzwerkfehler können Testreste bleiben; Tokens laufen spätestens nach 15 Minuten ab und Ereignisse nach sieben Tagen.
+A separate Rust process creates a real MLS message. The test sends its ciphertext through the relay, retrieves it as an authorized recipient and has the Rust process decrypt it. It also checks missing authentication, foreign membership and revocation. Test data is deleted in a `finally` block. If the test is interrupted or a network error occurs, data may remain; tokens expire within 15 minutes and events within seven days.
 
-Diese Prüfung ist ein Host-/Backend-Nachweis. Sie ersetzt keine nativen iOS-/Android-Tests, keine Geräte-Kopplung und keinen Recovery-Test.
+This is a host/backend proof. It does not replace native iOS/Android tests, device approval or recovery tests.
 
-## Prüfumfang vor echten Nutzerdaten
+## Checks required before real user data
 
-- Native Schlüsselablage, atomare Protokollzustände und Neustart-/Backup-Verhalten.
-- Autorisierte Geräteaufnahme, Elternrechte, Mitgliedschaftsänderungen und Recovery.
-- Der in docs/crypto-spike.md beschriebene Wiederzustellungsfall.
-- Abuse-Schutz, Quotenmonitoring, operative Löschung/Backups und Deployment-Härtung.
-- Gemeinsame Testvektoren für lokale Zeit-/Spielplanung, Zeitzonen und Sommerzeit.
+- Native key storage, atomic protocol state and restart/backup behavior.
+- Authorized device enrollment, Guardian rights, membership changes and recovery.
+- The redelivery case described in docs/crypto-spike.md.
+- Abuse protection, quota monitoring, operational deletion/backups and deployment hardening.
+- Shared test vectors for local time/game planning, time zones and daylight saving time.

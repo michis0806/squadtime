@@ -607,6 +607,7 @@ dependencies = [
  "mls-rs",
  "mls-rs-core",
  "mls-rs-crypto-awslc",
+ "zeroize",
 ]
 
 [[package]]

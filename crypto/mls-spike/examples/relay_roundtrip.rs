@@ -1,7 +1,7 @@
 //! Interactive synthetic ciphertext harness. No network access or persisted keys.
 use std::io::{self, BufRead, Read, Write};
 
-use mls_rs::{group::ReceivedMessage, MlsMessage};
+use squadtime_mls_spike::ApplicationReceiver;
 #[path = "../support/mod.rs"]
 mod support;
 use support::{ApprovedDevices, Device};
@@ -59,9 +59,11 @@ fn run() -> Result<(), &'static str> {
         .build()
         .map_err(|_| "device approval failed")?;
     group.apply_pending_commit().map_err(|_| "commit failed")?;
-    let (mut recipient, _) = bob
+    let (recipient, _) = bob
         .join_group(None, &commit.welcome_messages[0], None)
         .map_err(|_| "join failed")?;
+    let mut recipient = ApplicationReceiver::initialize(&bob, recipient)
+        .map_err(|_| "receiver initialization failed")?;
     let encrypted = group
         .encrypt_application_message(EVENT, Default::default())
         .map_err(|_| "encryption failed")?;
@@ -80,15 +82,11 @@ fn run() -> Result<(), &'static str> {
         return Err("invalid relay input length");
     }
     let received = decode_hex(&input)?;
-    let packet = MlsMessage::from_bytes(&received).map_err(|_| "invalid MLS packet")?;
-    let message = recipient
-        .process_incoming_message(packet)
+    recipient
+        .receive(&received, |event| {
+            event.data() == EVENT && event.sender_index == group.current_member_index()
+        })
         .map_err(|_| "MLS verification failed")?;
-    match message {
-        ReceivedMessage::ApplicationMessage(event)
-            if event.data() == EVENT && event.sender_index == group.current_member_index() => {}
-        _ => return Err("relay event verification failed"),
-    }
     writeln!(output, "verified").map_err(|_| "output failed")?;
     output.flush().map_err(|_| "output failed")?;
     Ok(())

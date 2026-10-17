@@ -69,26 +69,42 @@ simulated network messages pass through MLS wire serialization and decoding.
    Alice's custom `IdentityProvider`; Bob's pinned legitimate key can join.
    This demonstrates the hook for trusted device binding.
 
-There are three integration tests: the first covers items 1–2; the second item 3;
-the third item 4. Last validation: **3 passed, 0 failed**, Rust 1.90.0,
+There are three lifecycle integration tests: the first covers items 1–2; the
+second item 3; the third item 4. Last recorded validation for these tests:
+**3 passed, 0 failed**, Rust 1.90.0,
 `aarch64-apple-darwin` (macOS host). Formatting and clippy also pass.
 This does not test real phones, multi-process networking or persistent storage.
+
+The application-message receive wrapper adds six transaction regression tests,
+bringing the Rust test suite to nine tests. Its implementation and evidence are
+described in [mls-state-transactions.md](mls-state-transactions.md).
 
 ### Availability finding: failed authentication consumes a generation
 
 With these pinned versions and default in-memory configuration, corrupting the
-last byte of a message makes processing fail. Retrying the original valid
-message from that same generation then fails with `KeyMissing(0)`. A newly
-encrypted message from the next generation is accepted. The test records this
-behavior rather than silently assuming retry is safe.
+last byte of a message through the raw library API makes processing fail.
+Retrying the original valid message from that same generation then fails with
+`KeyMissing(0)`. A newly encrypted message from the next generation is accepted.
+The unchanged raw test records this behavior; it must not be treated as safe to
+retry directly.
 
-This is a production integration blocker for naive redelivery: characterize
-upstream expectations, transaction/state semantics and a supported recovery
-strategy before using the library in an app. Do not patch cryptographic ratchet
-internals or retain all old secrets as a workaround. A malicious relay can
-already drop messages; this observation concerns delivery robustness, and is
-not evidence that it can decrypt them. No broad vulnerability claim has been
-established by this small proof.
+For **application messages only**, the `ApplicationReceiver` wrapper addresses
+that failure mode by processing on a candidate group and persisting only after
+authentication and pure application-policy acceptance. Under the tested
+assumptions of atomic storage writes and one writer per group, rejected input
+does not consume the saved generation and an accepted input does. Six additional
+tests exercise rejection, retry, replay, reload and storage errors. This resolves
+the raw receive blocker only for callers that use this wrapper under those
+assumptions. It does not provide a durable native inbox, process-crash atomicity
+with application data, multi-process locking, rollback prevention, or a path for
+MLS control commits and membership changes; those remain open. See
+[mls-state-transactions.md](mls-state-transactions.md) for the limits and test
+details.
+
+Do not patch cryptographic ratchet internals or retain old secrets as a
+workaround. A malicious relay can already drop messages; this observation
+concerns delivery robustness, not its ability to decrypt. No broad vulnerability
+claim has been established by this proof.
 
 ## Proposed application boundary
 

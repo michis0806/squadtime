@@ -1,153 +1,153 @@
-# Squadtime – Konzept
+# Squadtime — Concept
 
-Stand: 17.10.2026
+Date: 2026-10-17
 
-## Problem & Idee
+## Problem and idea
 
-Kinder, die zusammen online spielen, finden schwer gemeinsame Zeiten. Sie nutzen verschiedene Plattformen (PS5, Switch, iPhone), und die Absprache läuft heute über verstreute Chats.
+Children who play online together have a hard time finding times that work for everyone. They use different platforms (PS5, Switch, iPhone), and coordination happens across scattered chats.
 
-Squadtime löst das mit Gruppen, eingetragenen Spielzeiten und einer Ansicht, die den besten gemeinsamen Termin vorschlägt. Grundprinzip: **Eltern legen den Rahmen fest, Kinder planen frei darin.**
+Squadtime solves this with groups, entered play times and a view that suggests the best shared time. The core principle: **parents set the boundaries; children plan freely within them.**
 
-Zielgruppe sind zunächst Kinder von etwa 8 bis 15 Jahren und ihre Eltern; Jugendliche und Erwachsene können mit eigenem Konto dazukommen.
+The initial audience is children around 8 to 15 and their parents; teenagers and adults can join with their own account.
 
-## Marktüberblick
+## Market overview
 
-Ähnliche Apps gibt es, aber keine ist für Kinder gemacht oder bindet Eltern ein. Die meisten sind kleine, junge Projekte für erwachsene Gamer.
+Similar apps exist, but none is designed for children or includes parents. Most are small, new projects for adult gamers.
 
-| App | Plattform | Was sie kann | Was fehlt |
+| App | Platform | What it does | What is missing |
 | --- | --- | --- | --- |
-| [WellPlayed GG](https://mwm.ai/apps/wellplayed-gg/6758271397) | iOS | Spielbereit-Ping, Freunde per QR-Code, Sessions planen | Kein Kinderschutz, keine Eltern |
-| [Squadling](https://peerpush.com/p/squadling) | Web | Gemeinsamer Gruppenkalender, Spielbereit-Signal | Keine App, kein Kinderschutz |
-| [Party Planner](https://www.producthunt.com/@mikey963) | Web | Terminvorschläge, Zusage-Link ohne Account, iCal | Nur Terminfindung |
-| Discord | alle | Server-Events, Chat | Kein Verfügbarkeitskalender ([Nutzerwunsch](https://support.discord.com/hc/sv/community/posts/5945192274967-Built-In-Scheduling-Calendar-Request)), erst ab 13 |
+| [WellPlayed GG](https://mwm.ai/apps/6758271397) | iOS | Ready-to-play ping, friends by QR code, session planning | No child safety or parents |
+| [Squadling](https://peerpush.com/p/squadling) | Web | Shared group calendar, ready-to-play signal | No app or child safety |
+| [Party Planner](https://www.producthunt.com/@mikey963) | Web | Suggested times, RSVP link without an account, iCal | Scheduling only |
+| Discord | All | Server events, chat | No availability calendar ([user request](https://support.discord.com/hc/sv/community/posts/5945192274967-Built-In-Scheduling-Calendar-Request)); age 13+ |
 
-**Die Lücke:** eine kindgerechte, plattformübergreifende App mit Eltern-Rahmen, Spiele-Inventar und Bewertungen.
+**The gap:** a child-friendly, cross-platform app with parent-set boundaries, a game inventory and ratings.
 
-## Kernfunktionen (MVP)
+## Core features (MVP)
 
-Die erste Version konzentriert sich auf das Planen. Alles andere kommt später.
+The first version focuses on planning. Everything else comes later.
 
-- **Kinderprofil ohne E-Mail:** Eltern legen Spitzname und Avatar aus fester Auswahl an, keine Fotos. Das Kind meldet sich per QR-Code aus der Eltern-App an, ohne Passwort.
-- **Gruppen per Einladung:** Beitritt nur per Code oder QR-Code, keine öffentliche Suche. Maximal etwa 10 Mitglieder.
-- **Verfügbarkeit:** feste Wochenzeiten („Mo/Mi 16–18 Uhr“) plus Abweichungen für einzelne Tage.
-- **Überschneidungsansicht:** das Herzstück. Sie schlägt den besten Termin vor, z. B. „4 von 5 können Mi 17–18 Uhr, alle haben Mario Kart auf der Switch“.
-- **Sessions:** Zeit, Spiel und Plattform vorschlagen; die anderen tippen „Dabei“ oder „Nicht dabei“.
-- **„Bin online“-Knopf:** läuft nach 1 Stunde automatisch ab. Ersetzt vorerst eine Anbindung an PSN oder Nintendo, für die es keine offiziellen Schnittstellen gibt.
-- **Schnellnachrichten statt Chat:** vorgefertigte Sätze wie „Komme 10 Min später“ oder „Wer hat Lust?“. Das vermeidet Moderations- und Mobbing-Probleme.
+- **Child profile without email:** parents set a nickname and choose an avatar from a fixed selection; no photos. The child signs in from the parent app by QR code, without a password.
+- **Groups by invitation:** join only with a code or QR code; no public search. Around 10 members maximum.
+- **Availability:** recurring weekly times (“Mon/Wed 4–6 pm”) plus exceptions for specific days.
+- **Overlap view:** the core feature. It suggests the best time, for example, “4 of 5 can do Wed 5–6 pm, and everyone has Mario Kart on Switch.”
+- **Sessions:** suggest a time, game and platform; others tap “Join” or “Can’t make it.”
+- **“I’m online” button:** expires automatically after one hour. For now, this replaces connections to PSN or Nintendo, which do not offer official APIs for this.
+- **Quick messages instead of chat:** preset phrases such as “I’ll be 10 min late” or “Who’s up for a game?” This avoids moderation and bullying problems.
 
-## Spiele-Inventar & Bewertung
+## Game inventory and ratings
 
-Jedes Kind hat ein „Regal“ mit seinen Spielen pro Plattform und bewertet, wie gern es sie spielt. Beides fließt direkt in die Terminvorschläge ein.
+Each child has a “shelf” of games by platform and rates how much they like each one. Both feed into time suggestions.
 
-**Inventar**
+**Inventory**
 
-- Ablauf: Spiel suchen, Plattform antippen, fertig. Ein automatischer Import ist bei PlayStation und Nintendo nicht offiziell möglich.
-- Cover kommen aus der Spieledatenbank IGDB (Twitch). Sie liefert auch quadratische Cover im Stil der Konsolen-Menüs, die gut in ein Regal-Layout passen.
-- Die Stores selbst (PlayStation Store, eShop, Google Play) bieten keine offene Schnittstelle; Amazons API ist an das Partnerprogramm gebunden.
-- IGDB ist für nicht-kommerzielle Nutzung kostenlos (4 Anfragen/Sekunde). Kommerziell braucht es eine Partnerschaft und einen sichtbaren Quellenhinweis ([Details](https://macmyths.com/apps/igdb/)).
+- Flow: search for a game, tap a platform, done. An automatic import from PlayStation and Nintendo is not officially available.
+- Covers come from the IGDB game database (Twitch). It also provides square covers styled like console menus, which work well in a shelf layout.
+- The stores themselves (PlayStation Store, eShop, Google Play) do not offer an open API; Amazon’s API requires participation in its partner program.
+- IGDB is free for non-commercial use (4 requests/second). Commercial use requires a partnership and a visible source credit ([details](https://macmyths.com/apps/igdb/)).
 
-**Bewertung: Wie gern spielst du das?**
+**Rating: how much do you like it?**
 
-- Vier kindgerechte Stufen statt Sterne: Lieblingsspiel, gern, geht so, gerade keine Lust. Jederzeit änderbar, weil sich Vorlieben schnell ändern.
-- Bewertungen sieht nur die eigene Gruppe, es gibt keine öffentlichen Ranglisten.
-- **Gruppen-Favoriten:** pro Gruppe die Spiele, die die meisten besitzen und am liebsten spielen.
-- **Bessere Vorschläge:** die Überschneidungsansicht nimmt das Spiel, das die verfügbaren Kinder gemeinsam am liebsten spielen.
-- **Entdecken:** „Drei aus deiner Gruppe lieben Minecraft, du hast es auch“. Bewusst ohne Kaufempfehlung oder Store-Links, damit kein Kaufdruck entsteht.
+- Four child-friendly levels instead of stars: favorite, like it, it’s okay, not in the mood right now. Changeable at any time because preferences change quickly.
+- Ratings are visible only within the child’s own group; there are no public leaderboards.
+- **Group favorites:** games that the most members own and like best in each group.
+- **Better suggestions:** the overlap view picks the game that the available children like most in common.
+- **Discover:** “Three people in your group love Minecraft, and you have it too.” Deliberately no purchase recommendations or store links, to avoid pressure to buy.
 
-## Eltern-Funktion
+## Parent features
 
-Eltern geben Vertrauen über Freunde statt über einzelne Gruppen. Das Kind darf jeder Gruppe selbst beitreten, in der mindestens *n* freigegebene Freunde sind.
+Parents build trust through friends rather than approving individual groups. A child may join any group with at least *n* approved friends.
 
-**So läuft ein Gruppenbeitritt ab**
+**How joining a group works**
 
-1. Das Kind scannt einen Einladungscode.
-2. Die App zählt die freigegebenen Freunde in der Gruppe.
-3. Mindestens *n* gefunden: Das Kind ist sofort drin, die Eltern bekommen einen Hinweis.
-4. Weniger als *n*: Die Eltern erhalten eine Anfrage und sehen die Mitglieder.
+1. The child scans an invitation code.
+2. The app counts approved friends in the group.
+3. At least *n* are found: the child joins immediately and the parents get a notice.
+4. Fewer than *n*: the parents receive a request and see the members.
 
-**Einstellungen pro Kind**
+**Settings per child**
 
-- **Modus:** Schwelle *n* (z. B. 1 oder 2), „immer frei“ oder „immer fragen“. So wächst die App mit dem Alter mit.
-- **Freunde freigeben:** Wer sich persönlich per QR-Code scannt, zählt automatisch als freigegeben. Eltern können das abschalten und Freunde manuell bestätigen.
-- **Zeitfenster:** z. B. „werktags 15–19 Uhr“. Das Kind plant nur innerhalb dieser Zeiten. Die Konsole selbst sperrt die App nicht; dafür verweist sie auf die Jugendschutz-Apps von Sony und Nintendo.
-- **Altersfreigaben als Info:** Eltern sehen USK/PEGI der Spiele im Inventar (aus IGDB), ohne Sperre.
-- **Wochenübersicht:** geplante Sessions auf einen Blick.
-- **Profil löschen:** jederzeit, mit allen Daten.
+- **Mode:** threshold *n* (for example 1 or 2), “always free” or “always ask.” This lets the app adapt as the child grows.
+- **Approve friends:** someone who scans in person by QR code is automatically counted as approved. Parents can turn this off and approve friends manually.
+- **Time window:** for example, “weekdays 3–7 pm.” The child plans only within those times. The console itself does not lock the app; the app points parents to Sony and Nintendo parental-control apps for that.
+- **Age ratings as information:** parents see USK/PEGI ratings for games in the inventory (from IGDB), without blocking.
+- **Weekly overview:** planned sessions at a glance.
+- **Delete profile:** at any time, with all data.
 
-## Kontotypen & Freigabe
+## Account types and sharing
 
-Es gibt zwei Kontotypen: Kinderkonten, die Eltern verwalten, und Erwachsenenkonten mit eigener Anmeldung. Ein Kinderkonto lässt sich später in ein eigenständiges Konto umwandeln, ohne Daten zu verlieren.
+There are two account types: child accounts managed by parents, and adult accounts with their own sign-in. A child account can later become an independent account without losing data.
 
-| Kontotyp | Anmeldung | Rechte |
+| Account type | Sign-in | Rights |
 | --- | --- | --- |
-| Kinderkonto | QR-Code-Kopplung durch die Eltern | Plant frei im Rahmen der Eltern-Einstellungen |
-| Erwachsenenkonto | Eigene E-Mail mit Passkey oder Magic Link | Volle Rechte; kann zusätzlich die Eltern-Rolle für Kinderkonten übernehmen |
+| Child account | QR pairing by a parent | Plans freely within the parent settings |
+| Adult account | Own email with passkey or magic link | Full rights; can also take the parent role for child accounts |
 
-Die Eltern-Rolle ist also kein eigener Kontotyp, sondern eine Funktion eines Erwachsenenkontos. So können spielende Eltern die App auch selbst nutzen.
+The parent role is therefore a feature of an adult account, not a separate account type. This lets parents who play games use the app themselves.
 
-**Erwachsene in Gruppen mit Kindern**
+**Adults in groups with children**
 
-- Gruppen nur für Erwachsene funktionieren ohne Einschränkungen.
-- Einer Gruppe mit Kindern dürfen Erwachsene nur beitreten, wenn sie bei mindestens einem Kind der Gruppe als Elternteil oder freigegebener Kontakt eingetragen sind, z. B. ein älteres Geschwisterkind.
-- In gemischten Gruppen sehen alle Kinder, dass ein Erwachsener Mitglied ist.
+- Groups for adults only work without restrictions.
+- Adults may join a group with children only if they are listed as a parent or approved contact for at least one child in that group, such as an older sibling.
+- In mixed groups, all children can see that an adult is a member.
 
-**Freigabe eines Kinderkontos in drei Stufen**
+**Three steps for granting independence to a child account**
 
-1. **Begleitet:** Gruppenbeitritt über die Freunde-Schwelle *n*, Zeitfenster aktiv.
-2. **Frei:** Modus „immer frei“, keine Zeitfenster; Eltern sehen nur noch die Wochenübersicht.
-3. **Eigenständig:** Die Eltern übergeben das Konto. Das Kind hinterlegt eigene E-Mail und Passkey und willigt selbst in den Datenschutz ein; der Eltern-Zugriff endet. Gruppen, Inventar und Bewertungen bleiben erhalten.
+1. **Guided:** group joining uses the approved-friend threshold *n*; time windows are active.
+2. **Free:** mode is “always free,” with no time windows; parents see only the weekly overview.
+3. **Independent:** parents hand over the account. The child adds their own email and passkey and gives their own privacy consent; parent access ends. Groups, inventory and ratings remain.
 
-Da kein Geburtsdatum gespeichert wird, lösen Eltern die Stufen selbst aus. Optional können sie ein Erinnerungsdatum setzen, etwa zum 16. Geburtstag (Einwilligungsalter nach DSGVO in Deutschland).
+Because no date of birth is stored, parents trigger each step themselves. They may optionally set a reminder date, for example for the child’s 16th birthday (the GDPR consent age in Germany).
 
-**Folge für die Stores:** Mit Erwachsenenkonten ist die App keine reine Kinder-App. Statt der Apple-Kategorie „Kids“ wäre eine normale Kategorie mit passender Altersfreigabe sinnvoll; die Regeln ohne Werbung und Tracking gelten trotzdem weiter.
+**Implication for app stores:** with adult accounts, this is not an app exclusively for children. A standard category with an appropriate age rating would make more sense than Apple’s “Kids” category; the rules against ads and tracking still apply.
 
-## Technik & Datensparsamkeit
+## Technology and data minimization
 
-Native Apps für iOS und Android sprechen mit einer gemeinsamen API in der EU. Für das Backend kommen drei Varianten infrage; gespeichert wird nur, was die Planung braucht.
+Native iOS and Android apps use a shared API in the EU. Three backend options are considered; only data needed for planning is stored.
 
-**Architektur**
+**Architecture**
 
-- **Apps:** nativ mit Swift/SwiftUI (iOS) und Kotlin/Jetpack Compose (Android). Eltern-, Kinder- und Erwachsenenansicht stecken in derselben App, getrennt über den Kontotyp.
-- **Gemeinsamer API-Vertrag:** eine OpenAPI-Spezifikation, aus der die Netzwerkschicht beider Apps automatisch erzeugt wird. So bleiben die Apps konsistent.
-- **Spiele-Proxy:** Der eigene Server fragt IGDB ab und cacht Cover. Die Geräte sprechen nie direkt mit Dritten; IGDB verlangt ohnehin einen Server-Proxy.
-- **Push:** APNs für iOS, Firebase Cloud Messaging für Android, ausgelöst vom Backend.
+- **Apps:** native Swift/SwiftUI (iOS) and Kotlin/Jetpack Compose (Android). Parent, child and adult views live in the same app and are separated by account type.
+- **Shared API contract:** an OpenAPI specification generates the network layer for both apps to keep them consistent.
+- **Game proxy:** the server queries IGDB and caches covers. Devices never contact third parties directly; IGDB requires a server proxy anyway.
+- **Push:** APNs for iOS and Firebase Cloud Messaging for Android, triggered by the backend.
 
-**Backend-Varianten**
+**Backend options**
 
-| Variante | Bausteine | Vorteile | Nachteile |
+| Option | Components | Advantages | Disadvantages |
 | --- | --- | --- | --- |
-| **Hetzner** (Deutschland) | Cloud-Server mit Docker: Caddy, API (z. B. Kotlin/Ktor), PostgreSQL; Object Storage und Storage Box für Cover und Backups; optional Coolify für Deployments | Am günstigsten, volle Kontrolle, Server in Deutschland | Selbst Admin: Updates, Firewall, Backups, Datenbank-Betrieb |
-| **Scaleway** (Frankreich) | Serverless Functions/Containers, Serverless SQL (PostgreSQL), Object Storage | Kein Serverbetrieb, echtes Postgres, klare EU-Regionen | Kosten weniger vorhersehbar, Push in kurzlebigen Funktionen etwas fummeliger |
-| **Bunny.net** (Slowenien) | Edge Scripting, Bunny Database (SQLite-basiert), Bunny Storage (S3-kompatibel), Magic Containers | Am nächsten an Cloudflare Workers/D1/R2, sehr einfach | Edge läuft weltweit; EU-Beschränkung der Daten und AVV vorab prüfen |
+| **Hetzner** (Germany) | Docker cloud server: Caddy, API (for example Kotlin/Ktor), PostgreSQL; object storage and Storage Box for covers and backups; optional Coolify for deployments | Cheapest, full control, servers in Germany | Self-managed updates, firewall, backups and database |
+| **Scaleway** (France) | Serverless Functions/Containers, Serverless SQL (PostgreSQL), Object Storage | No server operations, real Postgres, clear EU regions | Less predictable costs; push is trickier in short-lived functions |
+| **Bunny.net** (Slovenia) | Edge Scripting, Bunny Database (SQLite-based), Bunny Storage (S3-compatible), Magic Containers | Closest to Cloudflare Workers/D1/R2, very simple | Edge runs globally; check EU data restrictions and data-processing terms first |
 
-Cloudflare selbst bietet für D1 und R2 EU-Datenhaltung, bleibt aber ein US-Unternehmen. **Empfehlung:** Scaleway, wenn kein Serverbetrieb gewünscht ist; Hetzner, wenn Admin-Arbeit kein Problem ist. Bunny vor einer Entscheidung mit einem Probe-Deployment testen. ([Bunny-Änderungsprotokoll](https://bunny.net/docs/changelog.md), [Scaleway Serverless](https://www.scaleway.com/en/build-scalable-applications-with-serverless/))
+Cloudflare itself offers EU data storage for D1 and R2, but remains a US company. **Recommendation:** Scaleway if server operations are not desired; Hetzner if admin work is acceptable. Test Bunny with a small deployment before deciding. ([Bunny changelog](https://bunny.net/docs/changelog.md), [Scaleway Serverless](https://www.scaleway.com/en/build-scalable-applications-with-serverless/))
 
-**Welche Daten gespeichert werden**
+**Data stored**
 
-| Wer | Gespeichert | Nicht gespeichert |
+| Who | Stored | Not stored |
 | --- | --- | --- |
-| Kind | Spitzname, Avatar-ID, Plattformen, Spiel-IDs mit Bewertung, Zeitslots | Klarname, Geburtsdatum, Fotos, Standort, Kontakte |
-| Eltern | E-Mail-Adresse, Einstellungen | Adresse, Zahlungsdaten (im MVP) |
+| Child | Nickname, avatar ID, platforms, game IDs with rating, time slots | Legal name, date of birth, photos, location, contacts |
+| Parents | Email address, settings | Postal address, payment data (in MVP) |
 
-**Weitere Regeln**
+**Other rules**
 
-- **Löschfristen:** vergangene Sessions nach 7 Tagen; der Online-Status wird nicht dauerhaft gespeichert.
-- **Push-Nachrichten:** neutral formuliert („Neues in deiner Gruppe“), da sie über Apple- und Google-Server laufen.
-- **Keine Werbung, kein Tracking:** keine Analyse- oder Werbe-SDKs. Google („Families“-Richtlinie) und Apple verlangen das für Apps mit Kindern als Nutzern.
-- **Einwilligung:** über das Eltern-Konto nach Art. 8 DSGVO, bestätigt per E-Mail. Juristisch prüfen lassen.
+- **Deletion timelines:** past sessions after 7 days; online status is not stored long-term.
+- **Push notifications:** neutral wording (“Something new in your group”), since they pass through Apple and Google servers.
+- **No ads, no tracking:** no analytics or advertising SDKs. Google (“Families” policy) and Apple require this for apps used by children.
+- **Consent:** through the parent account under GDPR Article 8, confirmed by email. Obtain legal review.
 
-## Offene Fragen & nächste Schritte
+## Open questions and next steps
 
-**Offene Fragen**
+**Open questions**
 
-- Was passiert, wenn freigegebene Freunde eine Gruppe verlassen und die Schwelle unterschritten wird? Vorschlag: Das Kind bleibt drin, die Eltern bekommen einen Hinweis.
-- Kostenlos, Einmalkauf oder Eltern-Abo? Davon hängt ab, ob eine IGDB-Partnerschaft nötig ist.
-- Brauchen beide Elternteile Zugriff auf ein Kinderprofil?
+- What happens if approved friends leave a group and the threshold is no longer met? Proposal: the child stays in the group and parents get a notice.
+- Free, one-time purchase or parent subscription? This determines whether an IGDB partnership is needed.
+- Should both parents have access to a child profile?
 
-**Nächste Schritte**
+**Next steps**
 
-- [ ] Klickbaren Prototyp der Überschneidungsansicht bauen und mit Sohn und Freunden testen
-- [ ] Andere Eltern der Gruppe nach Interesse und Bedenken fragen
-- [ ] IGDB-Zugang anlegen und kommerzielle Bedingungen klären
-- [ ] Datenschutz kurz juristisch prüfen lassen (Art. 8 DSGVO, Store-Richtlinien)
-- [ ] Backend wählen: Hetzner, Scaleway oder Bunny, je mit kleinem Probe-Deployment
+- [ ] Build a clickable prototype of the overlap view and test it with a son and his friends
+- [ ] Ask other parents in the group about interest and concerns
+- [ ] Create an IGDB account and clarify commercial terms
+- [ ] Have privacy questions briefly reviewed by counsel (GDPR Article 8, store policies)
+- [ ] Choose a backend: Hetzner, Scaleway or Bunny, with a small trial deployment for each

@@ -1,0 +1,41 @@
+name: Native build checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile proof and instrumentation APKs
+        working-directory: native/android
+        run: ./gradlew :proof:assembleDebug :proof:assembleDebugAndroidTest --no-daemon --console=plain
+  apple:
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install project generator
+        run: brew install xcodegen
+      - name: Generate proof project
+        run: xcodegen generate --spec native/apple/project.yml
+      - name: Compile proof and XCTest host
+        run: >-
+          xcodebuild build-for-testing
+          -project native/apple/SquadtimeAppleProof.xcodeproj
+          -scheme PairingProof
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath native/apple/build
+          CODE_SIGNING_ALLOWED=NO

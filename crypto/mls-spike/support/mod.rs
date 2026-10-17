@@ -87,7 +87,18 @@ impl Device {
         }
     }
     pub fn client(&self, approved: ApprovedDevices) -> Client<impl MlsConfig> {
+        self.client_with_storage(
+            approved,
+            mls_rs::storage_provider::in_memory::InMemoryGroupStateStorage::new(),
+        )
+    }
+    pub fn client_with_storage<S: mls_rs::GroupStateStorage + Clone + 'static>(
+        &self,
+        approved: ApprovedDevices,
+        storage: S,
+    ) -> Client<impl MlsConfig> {
         Client::builder()
+            .group_state_storage(storage)
             .identity_provider(approved)
             .crypto_provider(AwsLcCryptoProvider::default())
             .signing_identity(self.identity.clone(), self.secret.clone(), SUITE)

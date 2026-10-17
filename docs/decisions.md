@@ -1,51 +1,51 @@
-# Architekturentscheidungen
+# Architecture decisions
 
-Statusangaben beziehen sich auf den aktuellen Projektstand. „Angenommen“ bezeichnet eine getroffene Richtungsentscheidung; es ist keine Behauptung, dass der Betrieb bereits produktionsreif ist.
+Statuses refer to the current project state. “Accepted” means a direction has been chosen; it does not claim that operation is production-ready.
 
-## Angenommen
+## Accepted
 
-### A-001: Cloudflare-Backend mit EU-Datenhaltung
+### A-001: Cloudflare backend with EU data storage
 
-**Entscheidung:** API mit Cloudflare Workers und TypeScript, D1 in der EU. R2 in der EU kommt bei Bedarf später hinzu.
+**Decision:** API on Cloudflare Workers with TypeScript, D1 in the EU. R2 in the EU may be added later as needed.
 
-**Grund:** Serverlose gemeinsame API und EU-Datenhaltung für den geplanten Dienst.
+**Reason:** A serverless shared API and EU data storage for the planned service.
 
-**Grenze:** Cloudflare ist ein US-Unternehmen. EU-Speicherort allein beantwortet keine Fragen zu Auftragsverarbeitung oder möglichem grenzüberschreitendem Zugriff.
+**Boundary:** Cloudflare is a US company. EU storage location alone does not answer questions about data processing terms or possible cross-border access.
 
-### A-002: Ende-zu-Ende-Verschlüsselung und lokale Planung
+### A-002: End-to-end encryption and local planning
 
-**Entscheidung:** Private Profile und Spiele-Inventare sowie Verfügbarkeit und Ereignisse je Gruppe werden clientseitig verschlüsselt. Verfügbarkeitsüberschneidungen und Terminvorschläge werden lokal berechnet.
+**Decision:** Private profiles and game inventories, plus availability and events per group, are encrypted on clients. Availability overlaps and suggested times are calculated locally.
 
-**Folge:** Kein serverseitiger Master-Schlüssel. Notwendige IDs, Routen und Betriebsmetadaten bleiben sichtbar. Der Familienbereich ist getrennt vom Gruppenbereich.
+**Consequence:** No server-side master key. Necessary IDs, routes and operational metadata remain visible. The family area is separate from group areas.
 
-### A-003: Login-Schlüssel und Geräteschlüssel trennen
+### A-003: Keep login and device keys separate
 
-**Entscheidung:** Passkey/Anmeldung dient nicht als Ersatz für Geräteschlüsselmaterial. Geräteverschlüsselung, Guardian-Freigabe und Wiederherstellung benötigen ein eigenes, ausdrücklich autorisiertes Modell.
+**Decision:** Passkey/login is not a substitute for device key material. Device encryption, Guardian approval and recovery require their own explicitly authorized model.
 
-**Status:** Grundsatz angenommen; konkrete Protokolle und Abläufe offen.
+**Status:** Principle accepted; specific protocols and flows remain open.
 
-### A-004: Entwicklungs-Relay vor Identitäts-Onboarding
+### A-004: Development relay before identity onboarding
 
-**Entscheidung:** Zuerst ein DEV-Relay mit synthetischen Testclients und zufälligen, begrenzt gültigen Bearer-Credentials, deren Hashes gespeichert werden.
+**Decision:** Start with a DEV relay for synthetic test clients and random, limited-lifetime bearer credentials whose hashes are stored.
 
-**Grenze:** Keine öffentliche Kontoerstellung und kein fertiges Endnutzer-Identitäts-Onboarding.
+**Boundary:** No public account creation and no finished end-user identity onboarding.
 
-### A-005: Kein Geheimnis in Git
+### A-005: No secrets in Git
 
-**Entscheidung:** Keine Zugangsdaten, privaten Schlüssel, Tokens oder produktiven Kontokennungen in Git. Öffentliche Repository-Inhalte dürfen keine privaten Konto-E-Mail-Adressen oder Cloudflare-Konto-IDs enthalten.
+**Decision:** No credentials, private keys, tokens or production account identifiers in Git. Public repository content must not contain private account email addresses or Cloudflare account IDs.
 
-## Offen
+## Open
 
-- **Schlüssel-Lebenszyklus:** Erzeugung, Gerätebindung, Rotation, Backup, Wiederherstellung und Löschung.
-- **Gerätefreigabe und Mitgliedschaft:** Wie ein neues Gerät authentisch aufgenommen wird, wer Mitglieder autorisiert und wie Entzug gegenüber verbleibenden Geräten durchgesetzt wird.
-- **Vergangenheit nach Widerruf:** Entzogene Clients dürfen zukünftige Inhalte nach Rotation nicht lesen. Bereits entschlüsselte oder gespeicherte Inhalte kann ein Client nicht vergessen; vergangener Zugriff lässt sich nicht rückgängig machen.
-- **Guardian-Modell:** Explizite, begrenzte und widerrufbare Zugriffs- und Wiederherstellungsrechte unter Wahrung der Trennung zwischen Familien- und Gruppenbereich.
-- **Böswilliger Server und Schlüsselersetzung:** Wie Clients erkennen und verifizieren, dass Schlüssel nicht durch den Server ausgetauscht wurden.
-- **Replay und Rollback:** Authentisierung von Reihenfolge, Version/Epoche und Mitgliedschaftszustand sowie Erkennung veralteter Zustände.
-- **Metadaten:** Exaktes Inventar sichtbarer IDs, Routen, Zeitpunkte, Größen und Aufbewahrung.
-- **Protokollwahl:** MLS wird evaluiert; es gibt noch keine Festlegung für den Produktivbetrieb.
-- **Push-Granularität:** Abwägung zwischen zeitnahen Updates und dem Schutz vor Rückschlüssen aus Zustellzeitpunkten.
+- **Key lifecycle:** generation, device binding, rotation, backup, recovery and deletion.
+- **Device approval and membership:** how a new device is authenticated, who authorizes members and how revocation is enforced for remaining devices.
+- **Past data after revocation:** revoked clients must not read future content after rotation. A client cannot forget content it has already decrypted or stored; past access cannot be undone.
+- **Guardian model:** explicit, limited and revocable access and recovery rights that preserve separation between family and group areas.
+- **Malicious server and key substitution:** how clients detect and verify that keys have not been replaced by the server.
+- **Replay and rollback:** authenticate ordering, version/epoch and membership state, and detect stale state.
+- **Metadata:** exact inventory of visible IDs, routes, timestamps, sizes and retention.
+- **Protocol choice:** MLS is under evaluation; no production choice has been made.
+- **Push granularity:** trade-offs between timely updates and inferences from delivery timing.
 
-## Sicherheitsleitlinien bis zur Klärung
+## Security guidelines until resolved
 
-Keine Klartexte, Schlüssel oder Zugangstokens protokollieren. Relay-Daten synthetisch halten. Keine Behauptung, dass E2EE Routing-Metadaten, Push-Zeitpunkte, bereits gelesene Daten oder kompromittierte Endgeräte verbirgt.
+Do not log plaintext, keys or access tokens. Use synthetic relay data. Do not claim that E2EE hides routing metadata, push timing, already-read data or compromised devices.

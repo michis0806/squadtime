@@ -15,6 +15,10 @@ Do not claim production E2EE, native-app validation or recovery support based on
 - Before a push: inspect staged scope, run npm run check:secrets -- --staged and a redacted Gitleaks scan. No token values in output.
 - Automatic workflows have read-only repository permissions and no deployment credentials.
 
+## Repository language
+
+Use English for repository documentation, code comments, user-facing prototype strings, commit messages, issues and pull requests. Chat with the project owner may remain German.
+
 ## Delegation
 
 The project owner explicitly requests delegation wherever useful, using the smallest suitable model.
