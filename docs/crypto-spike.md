@@ -99,7 +99,9 @@ assumptions. It does not provide a durable native inbox, process-crash atomicity
 with application data, multi-process locking, rollback prevention, or a path for
 MLS control commits and membership changes; those remain open. See
 [mls-state-transactions.md](mls-state-transactions.md) for the limits and test
-details.
+details. The separate [native vault proof](durable-native-state.md) now combines
+actual Rust MLS receive with an encrypted SQLite checkpoint and recoverable inbox.
+Its validation and remaining boundaries are separate from this standalone wrapper.
 
 Do not patch cryptographic ratchet internals or retain old secrets as a
 workaround. A malicious relay can already drop messages; this observation

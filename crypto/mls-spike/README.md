@@ -26,3 +26,7 @@ the corresponding bytes, and send the fetched hex bytes on stdin. It prints
 `tests/transactions.rs` preserves authentic retry after rejection and replay
 rejection across supported reloads. The raw failure test remains in
 `tests/lifecycle.rs` as evidence.
+
+The real MLS [native snapshot bridge](../../docs/native-mls-bridge.md) exports a
+bounded C ABI and complete secret receiver snapshots for native encrypted
+state/inbox transaction experiments. It performs no durable publication itself.

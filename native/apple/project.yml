@@ -11,11 +11,19 @@ settings:
     CODE_SIGN_IDENTITY: '-'
     CODE_SIGN_STYLE: Manual
     TARGETED_DEVICE_FAMILY: '1,2'
+    SWIFT_INCLUDE_PATHS: '$(SRCROOT)/RustMLS'
+    LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: '$(SRCROOT)/../../.local/native/apple/iphonesimulator'
+    LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: '$(SRCROOT)/../../.local/native/apple/iphoneos'
+    OTHER_LDFLAGS: '$(inherited) -lsquadtime_mls_spike -lsqlite3'
 targets:
   PairingProof:
     type: framework
     platform: iOS
     sources: [Sources/PairingProof]
+    preBuildScripts:
+      - name: Check native Rust MLS archive
+        path: scripts/check-rust-bridge.sh
+        basedOnDependencyAnalysis: false
   ProofHost:
     type: application
     platform: iOS
@@ -53,6 +61,17 @@ targets:
       base:
         TEST_HOST: '$(BUILT_PRODUCTS_DIR)/ProofHost.app/ProofHost'
         BUNDLE_LOADER: '$(TEST_HOST)'
+  VaultRestartProofTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [RestartTests]
+    dependencies:
+      - target: PairingProof
+      - target: ProofHost
+    settings:
+      base:
+        TEST_HOST: '$(BUILT_PRODUCTS_DIR)/ProofHost.app/ProofHost'
+        BUNDLE_LOADER: '$(TEST_HOST)'
 schemes:
   PairingProof:
     build:
@@ -61,3 +80,10 @@ schemes:
         ProofHost: all
     test:
       targets: [PairingProofTests]
+  VaultRestartProof:
+    build:
+      targets:
+        PairingProof: all
+        ProofHost: all
+    test:
+      targets: [VaultRestartProofTests]

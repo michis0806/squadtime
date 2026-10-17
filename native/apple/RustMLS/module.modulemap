@@ -1,0 +1,4 @@
+module SquadtimeMLSFFI {
+    header "../../include/squadtime_mls.h"
+    export *
+}

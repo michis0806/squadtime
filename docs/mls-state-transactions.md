@@ -2,7 +2,9 @@
 
 2026-10-17. Evaluation with pinned `mls-rs 0.56.0` / AWS-LC provider `0.25.1`.
 This addresses a specific application-receive robustness problem; it is not a
-production security review, durable inbox, or complete rollback defense.
+production security review or complete rollback defense. The later native proof
+adds an encrypted checkpoint/inbox wrapper around this receive path; see
+[durable-native-state.md](durable-native-state.md) for its distinct scope and limits.
 
 ## Why the raw call consumes a failed packet's generation
 
@@ -84,7 +86,9 @@ an observing wrapper around upstream in-memory group storage:
 Snapshots are compared in memory without printing them. Test storage, synthetic
 keys and event contents never go to files or logs. These are restart simulations
 using retained opaque serialized **RAM** storage, not process-kill, filesystem,
-fsync, power-loss, database-corruption, or mobile-device durability tests.
+fsync, power-loss, database-corruption, or mobile-device durability tests. A separate
+native vault proof now exercises atomic encrypted SQLite state/inbox commits with
+real MLS packets; it does not upgrade these host tests into power-loss evidence.
 
 Run from `crypto/mls-spike`:
 
@@ -121,11 +125,13 @@ Stored checkpoints themselves contain secret material and must use authenticated
 encryption and native key protection in a real client. The default RAM store is
 neither encrypted durable storage nor a recovery service.
 
-**Crash gap and inbox:** this helper commits MLS state before returning plaintext.
+**Crash gap and inbox:** this helper alone commits MLS state before returning plaintext.
 If a process dies after that commit but before its application database/inbox is
 updated, the relay retry is correctly rejected and the app could miss the event.
-A production store must atomically commit MLS state **and** a recoverable accepted
-application event/inbox (or its protected data), then apply/display it idempotently.
+The native proof adds a vault that atomically commits encrypted MLS state and a
+recoverable accepted inbox item, then supports reopening and idempotent acknowledgement.
+That proof is not yet the production application store. A production store must apply/display
+the accepted event idempotently and coordinate other application data.
 The current pure predicate is not that transaction and must not write the UI,
 application state or external services. A storage error after commit can create
 the same application-delivery gap; blocking the instance avoids unsafe ratchet
@@ -139,6 +145,8 @@ after sender rollback. Trusted monotonic state/consistency and backup semantics
 remain open; never fix the crash gap by blindly restoring an old group.
 
 The result supports continuing library evaluation without changing MLS libraries
-solely for this raw-call behavior. Production persistence, complete app-state
-atomicity, enrollment, mobile bindings/key storage and independent security review
-remain separate work. Native iOS/Android execution is not established here.
+solely for this raw-call behavior. Native Rust FFI and encrypted SQLite vaults now
+exercise the receive path; production persistence, complete app-state atomicity,
+enrollment, membership/control authorization, recovery, rollback defense and
+independent security review remain separate work. Native validation status is
+tracked in [validation.md](validation.md).

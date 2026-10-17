@@ -36,6 +36,51 @@ The public `native/fixtures/pairing-v1.json` is copied into the test bundle. Tes
 
 On 2026-10-17, Xcode 27.1 ran all eight tests successfully on the iPhone 18 Pro simulator with iOS 27.0: zero failures and zero skips. This includes verification of the public Android-native request and approval imported as `Documents/pairing-android-import.json`, as well as the shared fixture and Apple-native public export. The optional Android import test skips when that file is absent; copy a public export from the Android proof into the test host's Documents directory to reproduce that direction. The fixture must never include private keys. To run only that direction, add `-only-testing:PairingProofTests/PairingProofTests/testAndroidNativeFixtureImport` to the command above.
 
-The physical-device conditional branch also compiled successfully with a generic iOS destination and `CODE_SIGNING_ALLOWED=NO`; this is a compile check, not hardware execution.
+The complete Rust-linked library, including the physical-device Secure Enclave branch, also compiled successfully with a generic iOS destination and `CODE_SIGNING_ALLOWED=NO`; this is a compile check, not hardware execution.
 
 Simulator tests cover Keychain reuse across new store instances, signature verification, tamper rejection, deletion and recreation, accessibility attributes, explicit approval, pinned authority, validity windows, exact request binding, and single-use consumption. A new store object does not prove persistence across a process restart. Physical iPhone and Secure Enclave validation, actual device locking, process restart, recovery, native product validation, and production E2EE remain open.
+
+## Encrypted durable MLS vault
+
+`DurableVault` is a local development proof that calls the actual Rust MLS static library through `native/include/squadtime_mls.h`; it does not replace MLS with a mock. Build the ignored local archive before generating and testing the Xcode project:
+
+```sh
+node scripts/build-native-mls.mjs apple-simulator
+xcodegen generate --spec native/apple/project.yml
+```
+
+The project explicitly fails if its platform's archive is missing. Simulator and physical-device archives are separate (`.local/native/apple/iphonesimulator/` and `iphoneos/`). No private snapshot, native binary, or local database belongs in Git. The C wrapper holds request and result JSON only in memory, copies the result, and releases the exact returned allocation with the bridge's free function. Errors expose status categories rather than secret payloads.
+
+The vault stores one SQLite row containing a revision and an AES-256-GCM encrypted whole payload `{snapshot, inbox}`. Associated data binds the format version, caller's vault ID, and revision. The random AES key is a separate Keychain generic-password item under `squadtime.proof.vault`, with `WhenUnlockedThisDeviceOnly` accessibility and synchronization disabled. This AES key is used in process memory; it is not an AES Secure Enclave key. An existing database with a missing key fails closed. Opening never generates replacement keys or resets MLS state. Creation never overwrites an existing database, including one left incomplete by a failed initialization.
+
+Each vault actor owns an independent SQLite connection. It verifies WAL mode, `synchronous=FULL`, `fullfsync=ON`, and `checkpoint_fullfsync=ON`. A receive first stages the Rust MLS result in memory, then uses `BEGIN IMMEDIATE` and a revision compare-and-swap to commit the new encrypted snapshot and accepted inbox event in one row update. Display data is returned only after successful commit. Stale writers fail and require reopening. Before-commit fault injection rolls back without consuming the packet. After-commit uncertainty returns no plaintext and poisons the instance; reopening reconciles the durable inbox and consumed MLS state. Acknowledgement removes an inbox item in another encrypted atomic revision update. Delivery remains at least once until acknowledgement, not exactly-once UI rendering.
+
+The inbox is bounded to 32 pending messages and 2 MiB of plaintext in aggregate; a caller may select a smaller count limit. A full inbox rejects a packet without consuming its MLS state. MLS snapshot size is bounded to 8 MiB and packet/plaintext size to 1 MiB. The dedicated vault directory, database, WAL, and shared-memory sidecar are excluded from backup and assigned complete file protection. SQLite receives only ciphertext and public row metadata. Tests inspect files in memory for accidental raw snapshot/base64 snapshot/plaintext persistence; they never write a decrypted snapshot or dump database bytes to logs.
+
+References: [SQLite WAL and synchronous behavior](https://www.sqlite.org/wal.html), [SQLite durability pragmas](https://www.sqlite.org/pragma.html), [Apple complete file protection](https://developer.apple.com/documentation/foundation/fileprotectiontype/complete), [Apple backup exclusion](https://developer.apple.com/documentation/foundation/urlresourcevalues/isexcludedfrombackup).
+
+This is not a claim of power-loss validation, secure memory zeroization, tamper-proof hardware counters, recovery, or rollback resistance against replacement of the entire database with an older valid copy. Revision CAS prevents concurrent lost updates; it is not an external monotonic trust anchor. The tested iOS 27 Simulator accepted complete-protection attribute setters but returned no Data Protection metadata for the database or sidecars. Simulator tests therefore cannot verify that attribute or real device-lock enforcement; the physical test branch requires the reported protection class to be complete. Backup exclusion flags, encrypted bytes, and Keychain accessibility metadata are checked on Simulator. Closing a vault releases its SQLite connection but does not promise immediate wiping or lock-triggered eviction of the retained Swift key or payload; their lifetime follows the actor and runtime. The caller supplies trusted local snapshots and vault IDs; remote bootstrap, account authorization, MLS membership lifecycle, and production key management remain outside this proof.
+
+## Separate process-restart proof
+
+The `VaultRestartProof` scheme is intentionally separate from the ordinary suite. Run its prepare and verify phases as separate test invocations, terminating the host between them:
+
+```sh
+xcodebuild test -project native/apple/SquadtimeAppleProof.xcodeproj \
+  -scheme VaultRestartProof -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+  -derivedDataPath native/apple/build -parallel-testing-enabled NO \
+  -only-testing:VaultRestartProofTests/RestartProofTests/testPrepare
+# Terminate the dev.squadtime.proof.host test host before the next invocation.
+xcodebuild test -project native/apple/SquadtimeAppleProof.xcodeproj \
+  -scheme VaultRestartProof -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+  -derivedDataPath native/apple/build -parallel-testing-enabled NO \
+  -only-testing:VaultRestartProofTests/RestartProofTests/testVerifyAfterProcessRestart
+```
+
+Prepare accepts one actual MLS packet into the encrypted vault. Its only external marker contains the public synthetic vault ID and the ciphertext packet. Verify requires that marker, opens the existing Keychain key and encrypted database, finds the pending event, rejects the already consumed packet, acknowledges the event, reopens the empty inbox, and removes its scoped test key, vault, and marker. Missing preparation is a failure rather than an automatic reset or a skipped proof. This demonstrates an app process restart; it does not simulate sudden power loss or device reboot.
+
+### Durable vault execution evidence
+
+On 2026-10-17, Xcode 27.1 on the iPhone 18 Pro / iOS 27.0 Simulator ran the ordinary suite against the actual Rust archive: **16 passed, zero failures, zero skips**. This includes the eight prior pairing tests and eight durable-vault tests: real prior/current-epoch MLS messages, close/reopen with pending inbox, consumed-packet rejection, tampered packet followed by authentic retry, bounded inbox, stale independent connections and acknowledgements, missing/wrong keys, ciphertext/revision/identity tamper, rollback before commit, uncertainty after commit, encrypted files, backup flags, and Keychain accessibility metadata.
+
+The separate prepare invocation then passed one test. Before verification, the proof host was confirmed absent; XCTest had already exited it, so an explicit termination request reported that it was not running. A separate verification invocation passed one test, confirming durable inbox/state across an actual process boundary and cleaning its scoped key, database, and public marker. Both phases had zero failures and zero skips. The complete Rust-linked generic iOS device build also succeeded without signing or installation. No physical device, lock enforcement, abrupt process kill, power loss, recovery, or production app was validated.

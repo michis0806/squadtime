@@ -83,11 +83,97 @@ into the host's private `files/pairing-apple-import.json`, then run:
 adb -s SERIAL shell am instrument -w \
   -e class 'dev.squadtime.proof.PairingProofTest#independentFixtureTranscriptsAndSignatures' \
   -e fixtureFile pairing-apple-import.json \
-  dev.squadtime.proof.test/androidx.test.runner.AndroidJUnitRunner
+  dev.squadtime.proof.test/dev.squadtime.proof.VaultRestartInstrumentation
 ```
 
 The fixture schema is identical to the shared Node fixture. The optional filename
 argument is test-only and restricted to a simple `pairing-*.json` filename.
+
+## Encrypted MLS vault and native ABI
+
+The additional vault proof calls the actual Rust MLS implementation through
+`native/include/squadtime_mls.h`, a bounded C JNI wrapper and Kotlin byte-array
+adapter. It does not reimplement MLS in Kotlin. The Rust fixture creates two
+synthetic peers and two ciphertext packets in memory; fixture snapshots are
+secret local state, never network input or checked-in fixtures. The bridge
+accepts at most 16 MiB per JSON input/output. Rust snapshots are capped at 8 MiB
+and packets at 1 MiB by the adapter. JNI input copies and Rust-owned outputs are
+wiped before release; Kotlin bridge byte arrays are cleared in `finally` blocks.
+JSON/base64 processing also creates immutable JVM strings and internal runtime
+copies that cannot be reliably erased. This is a development proof, not a claim
+of comprehensive secret-memory zeroization.
+
+`MlsVault` uses a separate non-exportable AndroidKeyStore AES-256-GCM key. Its
+SQLite database lives under `Context.noBackupFilesDir`. A single AES-GCM payload
+contains both the MLS snapshot and pending inbox, authenticated with AAD binding
+format version, vault UUID and revision. Each update uses a fresh provider-created
+nonce. The SQL row exposes revision, nonce and ciphertext; ciphertext sizes and
+filesystem metadata remain visible. SQLite runs in WAL mode with synchronous
+FULL. Plaintext snapshots and messages are never passed as SQL values or written
+to files. The proof host still disables backup.
+
+Android limits a vault snapshot to 700 KiB, the serialized encrypted payload to
+1 MiB before encryption and the pending inbox to 128 entries. The smaller vault
+bounds keep BLOB reads below Android CursorWindow limits; they are stricter than
+the shared Rust bridge limits. Oversized creates reject before creating a database
+or key. A receive that would exceed a bound rejects before commit and releases no
+plaintext; the previously committed state remains authoritative.
+
+A receive loads the trusted local snapshot, stages Rust MLS processing, and then
+commits the advanced snapshot and pending plaintext inbox together in one SQL
+transaction with a revision compare-and-swap. Only after commit does it return
+plaintext to its caller. Reopening can recover pending messages without running
+MLS a second time. Acknowledgement removes an inbox item in another atomic CAS
+transaction. Independent connections reject stale revisions, including a competing
+commit interleaved after MLS processing and immediately before SQL CAS. Each
+operation captures its expected revision before loading state; a same-instance
+reentrant callback that commits another receive makes the outer operation reject
+instead of overwriting the inner state or inbox. A dedicated regression verifies
+both packets remain consumed and both inbox entries survive reopening.
+
+An existing database with a missing key fails closed; opening never creates a
+replacement. Wrong keys, ciphertext/nonce changes and revision changes reject.
+Whole-database rollback by a malicious party remains unsolved: AAD plus revision
+CAS does not establish an external monotonic anchor. Coordination of initial
+creation is process-local; this proof does not establish cross-process concurrent
+creation guarantees. Callers must manage connection closure and lifetime.
+
+`VaultFault.BEFORE_COMMIT`, `AFTER_COMMIT_UNCERTAIN` and `testBeforeCas` are explicit
+proof-only fault/interleaving hooks. Before-commit faults roll back. After-commit
+uncertainty returns no plaintext and requires reopening, which recovers the durable
+inbox and rejects packet replay. These hooks test application behavior; they do
+not simulate a real disk failure, kernel crash or power loss.
+
+The JNI build uses the installed NDK 29.0.14206865 compiler directly, API 31 arm64,
+and explicit 16 KiB ELF page alignment. It requires the separately built Rust
+artifact at `.local/native/android/arm64-v8a/libsquadtime_mls_spike.so`; absence is a
+build failure, not a skipped native test. `pairing:buildMlsJni` packages the tiny
+JNI `.so` and the actual Rust `.so` into the proof host. No native binaries or
+secret snapshots are checked into the repository.
+
+## Cross-process restart proof
+
+The test-only instrumentation runner delegates to AndroidJUnitRunner by default.
+With `restartProof=true`, it instead requires one of two explicit phases. `prepare`
+creates an encrypted vault and commits one MLS receive. It writes a marker
+containing only a vault UUID, public ciphertext packet and a plaintext digest.
+After the app process is force-stopped, `verify` reopens the same vault/key, checks
+the pending plaintext by digest, rejects packet replay, acknowledges the message
+and removes its synthetic vault, key and marker. Missing or invalid phases and
+missing prepared state return `restartProof=rejected`; they never silently pass.
+
+```sh
+adb -s SERIAL shell am instrument -w -e restartProof true -e phase prepare \
+  dev.squadtime.proof.test/dev.squadtime.proof.VaultRestartInstrumentation
+adb -s SERIAL shell am force-stop dev.squadtime.proof
+adb -s SERIAL shell am instrument -w -e restartProof true -e phase verify \
+  dev.squadtime.proof.test/dev.squadtime.proof.VaultRestartInstrumentation
+```
+
+Both runs must report `restartProof=passed` and instrumentation result code `-1`.
+This is an actual process restart proof when executed, not a power-loss durability
+or full rollback/recovery guarantee. The two phases must use the same installed
+host data; Gradle connected-test cleanup can remove it between runs.
 
 ## Validation status
 
@@ -112,3 +198,31 @@ Apple Simulator import test. A public Apple export also passed the targeted
 Android instrumentation verifier (one additional test, no failures). These
 checks prove both signature/transcript interoperability directions using expired
 synthetic fixtures; they do not establish the real-world approver trust pin.
+
+
+### Rust-backed vault validation (2026-10-17)
+
+The final host and test APKs built successfully with the actual Rust shared
+library and the JNI wrapper. Direct instrumentation on `emulator-5580` (API 37,
+`arm64-v8a`) passed **13 tests**, with zero failures: all five existing pairing
+tests and eight additional real-Rust vault tests. Coverage includes authenticated
+receive and retry after tampering, replay rejection after reopening, durable
+pending inbox and acknowledgement, pre-commit rollback, post-commit uncertainty
+without plaintext release, independent-connection stale CAS, same-instance
+reentrant CAS, missing/wrong keys, ciphertext/revision/nonce tampering and
+oversized creation without creating a database or key. Each opened vault
+connection checked actual `journal_mode=wal` and `synchronous=2` (FULL).
+
+The explicit restart-mode negative check rejected a missing phase with result
+code `0`. Preparation passed with process ID **4919** and result code `-1`.
+After `am force-stop dev.squadtime.proof`, verification passed in a distinct
+process, ID **4953**, with result code `-1`. Verification recovered the pending
+message by digest, rejected the already-consumed MLS ciphertext, acknowledged it,
+reopened to an empty inbox, and deleted its synthetic vault, key and public marker.
+This demonstrates process-restart persistence, not power-loss or malicious-disk
+rollback protection.
+
+ELF inspection confirmed the JNI library's LOAD segments have alignment `0x4000`
+(16 KiB). No snapshots or private keys were exported. The scoped test and host
+packages were uninstalled and the task-owned emulator was shut down after
+validation; all generated host build outputs remain ignored.

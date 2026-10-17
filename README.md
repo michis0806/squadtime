@@ -2,7 +2,7 @@
 
 Shared play sessions for friend groups, within boundaries set by parents.
 
-**Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. The native iOS and Android apps are not implemented. A limited native device-signing and approval proof now has simulator and emulator evidence; it is neither complete enrollment nor MLS integration. Guardian permissions and recovery are also open. See [native/README.md](native/README.md) and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
+**Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. The product's native iOS and Android apps are not yet implemented. A limited native device-signing and approval proof has simulator and emulator evidence. A separate native bridge exercises synthetic MLS receive with encrypted local state; the approval keys are not yet bound to MLS identity or membership. Guardian permissions and recovery are also open. See [native/README.md](native/README.md) and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
 
 ## Components
 
@@ -11,7 +11,8 @@ Shared play sessions for friend groups, within boundaries set by parents.
 - `crypto/mls-spike/`: runnable MLS protocol tests with freshly generated test identities.
 - `docs/architecture.md`, `docs/threat-model.md`, `docs/decisions.md`: architecture, boundaries and open decisions.
 - `docs/crypto-spike.md`: library comparison, evidence and known integration limits.
-- `docs/mls-state-transactions.md`: application-message receive with staged MLS state and its transaction boundaries.
+- `docs/mls-state-transactions.md`: staged MLS receive behavior and transaction boundaries.
+- `docs/durable-native-state.md`: native encrypted MLS checkpoint/inbox proof and its limits.
 - `native/README.md`, `docs/device-pairing-proof.md`: implemented device-approval proof and its limited scope.
 - `squadtime-konzept.md`: original product concept; newer architecture decisions govern technical deviations.
 
@@ -39,7 +40,7 @@ Events remain available through the API for at most seven days. Hourly cleanup r
 
 The group history returns at most 100 events per page. Identical event retries are idempotent during the event’s retention period. After expiry, the client must use the current revision and create a new event. The server revision protects against ordinary write conflicts, not a malicious server.
 
-For MLS application messages, `ApplicationReceiver` stages candidate state and persists it only after successful authentication and policy checks. Under atomic-storage and single-writer assumptions, this addresses the observed generation consumption in direct raw receive. It does not provide a durable mobile inbox or crash, rollback or multi-process safety. See [docs/mls-state-transactions.md](docs/mls-state-transactions.md) for details and open limits.
+For MLS application messages, `ApplicationReceiver` stages candidate state and persists it only after successful authentication and policy checks. The native proof now connects the real Rust MLS receive path to encrypted SQLite storage that atomically checkpoints MLS state with a pending inbox item, using platform-keystore-protected AES keys and revision compare-and-swap. This is limited synthetic two-peer receive proof; it does not prove power-loss durability, malicious-database rollback protection, complete app integration or production E2EE. See [docs/durable-native-state.md](docs/durable-native-state.md) and [docs/mls-state-transactions.md](docs/mls-state-transactions.md).
 
 ## Cloudflare development
 

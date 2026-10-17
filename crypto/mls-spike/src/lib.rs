@@ -93,3 +93,6 @@ impl<C: MlsConfig> ApplicationReceiver<C> {
         Ok(event)
     }
 }
+
+/// Stateless native snapshot bridge for the synthetic development proof.
+pub mod native_bridge;

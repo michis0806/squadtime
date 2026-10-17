@@ -17,6 +17,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Install pinned Android NDK
+        run: sdkmanager "ndk;29.0.14206865"
+      - name: Build Rust MLS for Android
+        run: node scripts/build-native-mls.mjs android
       - name: Compile proof and instrumentation APKs
         working-directory: native/android
         run: ./gradlew :proof:assembleDebug :proof:assembleDebugAndroidTest --no-daemon --console=plain
@@ -28,7 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install project generator
-        run: brew install xcodegen
+        run: brew install xcodegen cmake
+      - name: Install pinned C binding generator
+        run: cargo install bindgen-cli --version 0.72.1 --locked
+      - name: Build Rust MLS for iOS Simulator
+        run: node scripts/build-native-mls.mjs apple-simulator
       - name: Generate proof project
         run: xcodegen generate --spec native/apple/project.yml
       - name: Compile proof and XCTest host
@@ -36,6 +44,14 @@ jobs:
           xcodebuild build-for-testing
           -project native/apple/SquadtimeAppleProof.xcodeproj
           -scheme PairingProof
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath native/apple/build
+          CODE_SIGNING_ALLOWED=NO
+      - name: Compile separate process restart tests
+        run: >-
+          xcodebuild build-for-testing
+          -project native/apple/SquadtimeAppleProof.xcodeproj
+          -scheme VaultRestartProof
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath native/apple/build
           CODE_SIGNING_ALLOWED=NO
