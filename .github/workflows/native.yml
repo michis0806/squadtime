@@ -18,7 +18,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Install pinned Android NDK
-        run: sdkmanager "ndk;29.0.14206865"
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865"'
       - name: Build Rust MLS for Android
         run: node scripts/build-native-mls.mjs android
       - name: Compile proof and instrumentation APKs
