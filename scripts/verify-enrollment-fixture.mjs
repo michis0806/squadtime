@@ -7,7 +7,7 @@ const fields = ['pendingId', 'groupId', 'keyPackage', 'request', 'approval',
   'requestSignature', 'approvalSignature', 'devicePublicKey', 'trustedApproverPublicKey', 'now'];
 const hash = value => createHash('sha256').update(value).digest('hex');
 const order = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
-function base64(value, maximum, exact) {
+export function base64(value, maximum, exact) {
   assert.equal(typeof value, 'string');
   assert.ok(value.length > 0 && value.length <= Math.ceil(maximum / 3) * 4);
   const bytes = Buffer.from(value, 'base64');
@@ -16,13 +16,13 @@ function base64(value, maximum, exact) {
   if (exact !== undefined) assert.equal(bytes.length, exact);
   return bytes;
 }
-function publicKey(value) {
+export function publicKey(value) {
   const raw = base64(value, 65, 65);
   assert.equal(raw[0], 4);
   return createPublicKey({ format: 'jwk', key: { kty: 'EC', crv: 'P-256',
     x: raw.subarray(1, 33).toString('base64url'), y: raw.subarray(33).toString('base64url') } });
 }
-function signature(value) {
+export function signature(value) {
   const bytes = base64(value, 72);
   assert.ok(bytes.length >= 8 && bytes[0] === 0x30 && bytes[1] === bytes.length - 2);
   let offset = 2;

@@ -37,7 +37,7 @@ Statuses refer to the current project state. “Accepted” means a direction ha
 ## Open
 
 - **Key lifecycle:** generation, device binding, rotation, backup, recovery and deletion.
-- **Device approval and membership:** the [local binding proof](mls-device-binding.md) ties native P-256 signatures to exact MLS identities, KeyPackage and initial group admission. Independent-device trust bootstrap, account/Guardian authority, durable membership transactions and revocation remain open.
+- **Device approval and membership:** the [independent admission proof](independent-admission.md) ties native P-256 signatures to actual MLS identities, KeyPackage and initial one-administrator/one-joiner admission to a two-member group, using separate role-local secret state, encrypted rows, revision CAS and resumable public outboxes. A local harness exchanges public envelopes via a local file transport between independent app processes with pre-provisioned test pins; Both Apple-to-Android and Android-to-Apple exchanges passed with process restarts between phases. Cloudflare-backed onboarding/transport, production trust bootstrap, account/Guardian authority, general membership changes and revocation remain open. The older [same-process proof](mls-device-binding.md) is retained as a separate experiment.
 - **Past data after revocation:** revoked clients must not read future content after rotation. A client cannot forget content it has already decrypted or stored; past access cannot be undone.
 - **Guardian model:** explicit, limited and revocable access and recovery rights that preserve separation between family and group areas.
 - **Malicious server and key substitution:** how clients detect and verify that keys have not been replaced by the server.

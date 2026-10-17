@@ -169,7 +169,10 @@ key rotation and trusted account roots are **not implemented**. The original sta
 pins establish the narrow substitution rejection tested above. A later
 [local native binding proof](mls-device-binding.md) now verifies native P-256
 signatures over actual MLS identities, KeyPackage and initial admission; both MLS
-participants still run in one process, with no distributed authorization ledger.
+participants in that earlier experiment run in one process. The successor
+[independent admission proof](independent-admission.md) separates both role states
+and commits each phase with its exact outbox in a native encrypted store. Neither
+proof supplies a distributed authorization ledger or production trust bootstrap.
 
 ## Recovery, deletion and remaining security work
 
@@ -194,7 +197,7 @@ limit message and group sizes, and obtain an independent application/security
 review. The later [native bridge](native-mls-bridge.md),
 [encrypted vault](durable-native-state.md) and [local admission binding](mls-device-binding.md)
 have Swift/Kotlin simulator/emulator evidence. Physical-device execution,
-independent-device enrollment, inter-library interoperability, state migration,
+production trust bootstrap, general membership, inter-library interoperability, state migration,
 encrypted recovery and full malicious-member policy tests remain open. The
 interactive host harness was also verified through the deployed DEV relay on
 2026-10-17; see [validation.md](validation.md) for scope. Native transport remains

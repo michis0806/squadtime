@@ -2,7 +2,7 @@
 
 Shared play sessions for friend groups, within boundaries set by parents.
 
-**Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. The product's native iOS and Android apps are not yet implemented. A limited native device-signing and approval proof has simulator and emulator evidence. A native bridge exercises synthetic MLS receive with encrypted local state. A local two-participant proof now binds native approval keys to actual MLS identities, a KeyPackage and group admission; independently running device enrollment remains open. Guardian permissions and recovery are also open. See [native/README.md](native/README.md) and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
+**Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. The product's native iOS and Android apps are not yet implemented. Native proofs now cover device approval, encrypted MLS receive state, and a bounded initial admission between separate administrator and joining-client processes. The admission harness exchanges public envelopes through local file transport using pre-provisioned test pins. Both Apple-to-Android and Android-to-Apple exchanges passed with fresh app processes between phases. Cloudflare onboarding/transport, account and Guardian authority, recovery, and general membership remain open. See [native/README.md](native/README.md), [docs/independent-admission.md](docs/independent-admission.md), and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
 
 ## Components
 
@@ -13,7 +13,8 @@ Shared play sessions for friend groups, within boundaries set by parents.
 - `docs/crypto-spike.md`: library comparison, evidence and known integration limits.
 - `docs/mls-state-transactions.md`: staged MLS receive behavior and transaction boundaries.
 - `docs/durable-native-state.md`: native encrypted MLS checkpoint/inbox proof and its limits.
-- `docs/mls-device-binding.md`: local native-signature binding to actual MLS admission, with its trust and persistence limits.
+- `docs/mls-device-binding.md`: earlier same-process native-signature binding proof.
+- `docs/independent-admission.md`: successor proof for separate administrator and joining-client processes, with public-envelope exchange and encrypted admission state.
 - `native/README.md`, `docs/device-pairing-proof.md`: implemented device-approval proof and its limited scope.
 - `squadtime-konzept.md`: original product concept; newer architecture decisions govern technical deviations.
 

@@ -1,0 +1,14 @@
+# Retain every default detector. This exception is limited to one audited public
+# MLS KeyPackage in the synthetic admission vector (including nested envelopes).
+# It contains public signing/HPKE keys and signatures, not private state.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Exact public MLS KeyPackage from the synthetic native admission fixture"
+condition = "AND"
+paths = ['''^native/fixtures/admission-v1\.json$''']
+regexTarget = "secret"
+regexes = ['''^AAEABQABAAEgzP\+MoFzxOYdQ9zBFSes9GXVQj8ThGHIDgTjkqXKgEQYgbGwNcbdxXt896E34\+trtx9dgFb85/ANqaFVsYk9X0FUgG62o3OKcfbBXUZ2Kb6njhUWV0DwTuQLCZg/UGxiFI2EAARtpbmRlcGVuZGVudC1qb2luZXIvZGV2aWNlLWICAAEKAAEAAwACAAcABQAAAgABAQAAAABq0\+2HAAAAAGy1IQcAQEAE9XHYWXudJSuQXXIaUMsqwD2pPPAVI2uRYBOH/oBdKotgGLLoc82tu7iRgvBHPgriaef1Sr9Kbcx6Y97O3l0AAEBA7nxGEJW0JACOHFo\+/6jgBbArGFrgHBGyyWVu34SNAoRpNXDd87aLXMZacTnPLOAka7m4g9QWgj724hK77HEmCQ==$''']

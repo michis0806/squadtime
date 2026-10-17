@@ -8,8 +8,8 @@ review, recovery, or proof of complete app E2EE.
 ## Boundary and secret handling
 
 `crypto/mls-spike/src/native_bridge.rs` exposes a C ABI. Fixture/receive calls are
-stateless; enrollment uses a bounded volatile process-local registry, described
-below. The ABI is documented in
+stateless; independent admission also uses serialized caller-owned state. The
+legacy `enrollment*` operations use a bounded volatile process-local registry. The ABI is documented in
 [`native/include/squadtime_mls.h`](../native/include/squadtime_mls.h):
 
 ```c
@@ -144,15 +144,15 @@ added package names; this is not a complete dependency audit or a production
 security approval. A full pinned-dependency advisory check belongs in integration
 and maintenance.
 
-Still open: independent-device enrollment into MLS beyond the local binding proof, real shared-group
+Still open: production onboarding and identity/guardian policy beyond the bounded admission proof, broader shared-group
 membership/control authorization, guardian policy, history transfer, recovery,
 state migrations, rollback detection, and independent application security review.
 The fixture's MLS signing keys are software keys protected as snapshot data;
 this does not claim Ed25519 keys reside inside Secure Enclave or Android hardware.
 
-## Local native P-256 approval bound to MLS admission
+## Legacy local native P-256 approval bound to MLS admission
 
-The bridge now also exposes `enrollmentprepare`, `enrollmentcomplete` and
+The earlier local-process proof remains available as `enrollmentprepare`, `enrollmentcomplete` and
 `enrollmentcancel`. This is a **local, single-process binding proof**: Rust owns
 both a synthetic existing MLS administrator and a synthetic joining MLS client.
 It does not establish that independently operating devices can enroll over a
@@ -233,3 +233,124 @@ Native simulator/emulator results and independent public transcript verification
 are recorded separately by the integrating task. Injected historical transcript
 times are test clocks; MLS KeyPackage generation/validation still uses the library's
 ordinary current-time behavior within the local proof.
+
+## Independent clients and restart-safe admission candidates
+
+`admission*` operations supersede the shared-process limitation for the bounded
+initial one-to-two-member admission proof. They do **not** use the legacy pending
+registry. An administrator creates only its own MLS participant; a joining client
+creates only its own identity, KeyPackage and private repository. Each call restores
+its participant from a separate opaque secret state. Only explicitly public signed
+artifacts cross the client boundary. The [independent admission protocol](independent-admission.md)
+records the integration contract and platform evidence separately.
+
+The existing C ABI is unchanged. All byte fields below are standard padded Base64;
+`transcript` is UTF-8 bytes, `outbox` is the exact public JSON bytes, and `state` is
+secret serialized local state. Decoded admission state is bounded to 512 KiB and
+public outbox to 128 KiB. JSON call/reply bounds remain 16 MiB. Commands reject
+unknown fields and public MLS messages reject trailing undecoded wire bytes.
+
+| Operation | Inputs after `op` | Result |
+| --- | --- | --- |
+| `admissioncreateadmin` | `adminPublicKey`, `now` | `state`, `transcript` |
+| `admissionpublishinvitation` | `state`, `signature`, `now` | `state`, `outbox`, `kind: invitation` |
+| `admissioncreatejoiner` | `invitation`, `trustedAdminPublicKey`, `devicePublicKey`, `now` | `state`, `transcript` |
+| `admissionpublishrequest` | `state`, `signature`, `now` | `state`, `outbox`, `kind: request` |
+| `admissioninspectrequest` | `state`, `request`, `trustedDevicePublicKey`, `now` | `transcript` |
+| `admissionadmit` | `state`, `request`, `trustedDevicePublicKey`, `approvalSignature`, `now` | `state`, `outbox`, `kind: welcome` |
+| `admissionjoin` | `state`, `welcome`, `now` | `state`, `outbox: empty string`, `kind: joined` |
+| `admissionresume` | `state` | exact stored `outbox`, `kind` |
+| `admissionreceive` | `state`, `packet` | successor `state`, `plaintext`, `senderIndex` |
+
+Administrator phases are `draft -> invitation -> welcome`; joining-client phases
+are `draft -> request -> joined`. Resume rejects drafts. Receive accepts only the
+terminal `welcome`/`joined` phases and preserves their outbox/kind while advancing
+the embedded MLS snapshot. Terminal state rejects another admission/join using
+already consumed phase state. There is no standalone ready snapshot in responses:
+native storage must keep the full successor state and pending inbox in one row,
+so joining does not introduce a second snapshot handoff transaction.
+
+### Public artifacts and cryptographic checks
+
+A signed invitation contains version, random invitation ID, actual group ID,
+encoded public administrator MLS identity, issuance/expiry, native signature,
+and administrator native P-256 public key. Its transcript binds the identity digest,
+not a server-supplied display name. The joiner verifies it against a **previously
+pinned native administrator key supplied separately by its caller**. It generates
+its own MLS identity and KeyPackage after verification.
+
+The public request nests the exact signed invitation bytes and includes a fresh
+request ID, KeyPackage, public joiner MLS identity, issuance/expiry, device
+signature and native device public key. Its transcript binds hashes of the exact
+invitation and KeyPackage bytes, both MLS identities, group and both native keys.
+Rust explicitly compares the parsed KeyPackage signing identity, suite and version
+to the declared joiner identity before inspection. Standard MLS cryptographic
+KeyPackage validation also runs in the subsequent library Add operation.
+
+The administrator checks the request's separately supplied trusted device pin and
+held invitation before presenting an approval transcript. The deliberate native
+approval signs the request digest and its exact group/native/MLS context. Rust
+verifies this signature before restoring the one-member group and executing MLS
+Add/commit. The administrator's advanced MLS snapshot, consumed request and exact
+Welcome outbox are serialized as **one candidate state**. The outbox contains only
+`version`, exact signed `request`, `approvalSignature`, MLS `welcome` and encrypted
+`probe` fields. It contains no participant state or private KeyPackage data.
+
+The joiner compares the request in that Welcome envelope to its exact persisted
+request, checks all signed native context and pins, restores its own private
+KeyPackage repository, and joins through the real MLS Welcome API. Actual group
+ID, own MLS identity, two-member roster and authenticated Welcome sender must
+match the invitation's pinned administrator MLS identity. No administrator private
+state is needed by the joiner, and no joiner private state is needed by the
+administrator. Neither endpoint accepts a public envelope as secret state.
+
+A fixed synthetic application packet is encrypted by the administrator after the
+accepted-in-memory Add, and its advanced sender ratchet is saved in the same
+candidate as the exact Welcome/probe outbox. Its plaintext is exactly:
+
+```json
+{"v":1,"eventId":"independent-admission-probe","type":"availability.set"}
+```
+
+The joiner uses `admissionreceive` for that probe only after its joined state has
+been committed. The returned plaintext must not be displayed until the native
+state-plus-inbox transaction commits. This is a bounded cross-client receive
+proof, not a general send/outbox/ack implementation.
+
+### Persistence, retry and remaining limits
+
+The bridge is stateless for these operations: it cannot know whether the caller
+has committed a candidate. Native encrypted revision CAS must atomically save
+successor state, its exact outbox and pending inbox before releasing messages or
+accepted plaintext. A pre-commit failure discards the candidate. After a commit,
+restart/retry must reopen that exact successor and use `admissionresume`; the
+bridge returns the stored bytes without generating another Add, Welcome or probe.
+Accepted MLS receive generations remain embedded alongside the native inbox.
+The platform adapters must also restore the existing native signer alias and pin;
+missing or changed keys must not silently generate a replacement identity.
+
+Replaying an **older secret state** to a stateless bridge can recompute a candidate;
+the host tests demonstrate this boundary explicitly. Prevention of that publication
+comes from the native transaction/CAS and consumed phases, not a process-global
+Rust registry. These tests do not establish protection against malicious local
+backup rollback, cloned private state or a compromised endpoint.
+
+Invitation expiry is issuance plus 300 seconds and request expiry inherits it.
+Creation, request publication and administrator admission enforce the trusted
+caller's bounded clock. An exact persisted pending request may accept its already
+authorized Welcome after that deadline, allowing delayed delivery/restart. Join
+checks signed historical context and `now >= request.issuedAt`; it does not create
+another approval or Add. This trusts the administrator's admission clock; there
+is no secure-time attestation or independent timestamp service. The underlying
+MLS KeyPackage lifetime still applies. Resume does not extend authorization.
+
+`tests/admission.rs` adds five host tests covering separate serialized state
+machines and exact outbox reopen; delayed Welcome; valid signature/explicit native
+pin checks; consumed phases; a genuinely unrelated valid Welcome substitution;
+a native-signed alien KeyPackage; trailing wire bytes; and tamper/authentic retry
+plus replay after successor-state reopen. All nineteen previous tests remain.
+The host protocol suite uses no file/network I/O or private-state exchange; native
+process-restart and public-only Apple/Android exchange evidence must come from
+the integrating platform tests. No dependencies or lockfile versions changed.
+Production account enrollment, larger groups, guardian authorization, generalized
+membership changes, recovery and independent security review remain open.

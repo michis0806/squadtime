@@ -108,3 +108,49 @@ On 2026-10-17, Xcode 27.1 / iPhone 18 Pro / iOS 27.0 ran the current main suite 
 The public enrollment export was copied to ignored `.local/enrollment-apple-export.json` and independently passed the Node/OpenSSL transcript, digest, context, and signature verifier. The complete final Rust-linked helper also compiled successfully for generic iOS with signing disabled; no physical device was used. Existing Pairing v1 and durable vault tests remain compatible. This increment did not rerun the separate vault process-restart phases; their earlier evidence is recorded above. It adds no claim of persistent admission state, independent-device onboarding, physical hardware execution, account authorization, or recovery.
 
 All generated native signing keys and vault AES keys use scoped test cleanup; successful admissions were consumed and the expiry-lifecycle test cancelled its remaining handles. The owned Simulator was shut down after verification. Public-only interoperability artifacts are retained separately from secret state.
+
+## Independent clients with durable admission
+
+`DurableAdmission` is a separate prototype adapter for independently serialized owner and joiner secrets. The new stateless Rust admission operations require each caller's own secret state blob; they do not use the older local binding proof's shared process registry. The owner creates and signs an invitation. The joiner verifies a separately provisioned native administrator pin and creates its own KeyPackage and signed request. The owner verifies a separately confirmed joiner key, requires explicit user approval, signs the exact inspected request context, and creates the MLS Add/Welcome. The joiner verifies and joins that Welcome using only its own retained secret state. Signed invitation/request context includes the group and relevant MLS identities. Admission must be approved before expiry; authenticated Welcome delivery may arrive after that deadline.
+
+The adapter stores an AES-GCM encrypted payload in `admission.sqlite`, with a separate `squadtime.proof.admission` Keychain AES key. Associated data binds `squadtime-admission-v1`, storage ID, and revision. The payload contains role, phase, opaque Rust secret state, exact public outbox, native public key and public Keychain alias, pinned administrator, input digest, and pending inbox. It reuses the verified SQLite WAL/FULL/fullfsync engine without changing `vault.sqlite` or the existing vault schema. Creating an initialized empty record precedes the first phase transaction. Every subsequent transition atomically CAS-commits successor Rust state and exact signed public outbox in one encrypted row before returning the outbox. Joining and receiving the fixed authenticated synthetic probe are staged together and atomically committed with the joined inbox before any plaintext is returned.
+
+A before-commit fault rolls back without publishing the staged outbox or consuming local state. An uncertain commit or stale revision poisons that instance; reopening validates the encrypted record and Rust's exact stored outbox and resumes those bytes rather than regenerating MLS or signatures. The final joined state and inbox remain in this same admission payload, avoiding the earlier local proof's separate admission-to-vault handoff. Probe replay is checked against the persisted consumed MLS state. Inbox acknowledgement is another atomic revision update.
+
+Existing databases are checked before generating a native signing key. Opening requires both the original AES wrapping key and the existing matching native signing key; missing or replaced keys fail closed. Only the public alias is stored, never a private key reference or private representation. Initial provisioning assumes a single creator per storage ID and key alias; concurrent subsequent writers are protected by revision CAS. Incomplete initial provisioning fails closed rather than automatically resetting state.
+
+Secret state is bounded to 512 KiB, a public outbox to 128 KiB, packets to 1 MiB, and the inbox to 32 items / 2 MiB aggregate plaintext. The database and sidecars retain complete-protection policy setters and backup exclusion. The earlier Simulator limitation on Data Protection metadata remains: neither physical lock enforcement nor power-loss durability is established. Whole-database rollback, trusted clocks, recovery, end-user identity bootstrap, Guardian/account authorization, and a production QR/network transport remain open.
+
+### Cross-process public exchange interface
+
+`AdmissionExchangeProof` is a separate scheme with target/class `AdmissionExchangeProofTests`; it is not part of the ordinary suite. Host automation writes public `Documents/admission-exchange/input.json` and reads `output.json`. The local lookup marker `local.json` contains only `vaultUUID`, `keyAlias`, and `role`; all secret state remains in the encrypted application-support database. Start refuses an existing marker. Other phases require an existing marker and never silently create replacement state.
+
+Each phase exports exactly `{kind, outbox, nativePublicKey}`, with byte fields in standard padded Base64. The outbox is the exact committed Rust public envelope. The administrator and candidate public keys must be provisioned as separate trusted test inputs; they are not implicitly trusted merely because an invitation or request carries them. Successful phases log only `ADMISSION_PHASE <phase> PID <process id>` for process-isolation evidence.
+
+| XCTest method | Required public input |
+| --- | --- |
+| `testOwnerStart` | `{now}` |
+| `testJoinerStart` | `{now, outbox: invitationBase64, trustedAdminPublicKey}` |
+| `testOwnerAdmit` | `{now, outbox: requestBase64, trustedDevicePublicKey, userConfirmed: true}` |
+| `testJoinerFinish` | `{now, outbox: welcomeBase64}` |
+| `testResume` | `{}` |
+| `testVerifyInbox` | `{}` |
+| `testCleanup` | `{}` |
+
+Resume reads the committed exact outbox. VerifyInbox reopens the joined state, checks the persisted synthetic probe, rejects replay, acknowledges it, and reopens an empty inbox without logging plaintext. Cleanup removes only this marker's scoped signing key, admission AES key, database directory, and local marker. Public exchange files contain signed public metadata, MLS KeyPackages, encrypted Welcome material and an encrypted probe; they contain no private snapshots or keys. Copying these files is a test transport, not a production onboarding ceremony.
+
+### Independent admission ordinary-suite evidence
+
+The current Apple ordinary suite ran on Xcode 27.1 / iPhone 18 Pro / iOS 27.0 against the final actual Rust archive: **30 passed, zero failures, zero skips**. The seven new durable-admission tests cover phase-by-phase reopening and exact outboxes, delayed authenticated Welcome delivery, atomic joined inbox persistence, replay rejection and acknowledgement, rollback and uncertain commits without staged output/plaintext release, stale independent connections, pins/signature tampering/expiry/phase replay, missing or replaced AES and signing keys, no implicit signing-key regeneration for an existing database, ciphertext/revision tampering, and backup policy flags. All previous 23 tests remained passing.
+
+The dedicated exchange scheme also built successfully into ignored `.local/admission-derived` and its proof host was installed for separately orchestrated cross-platform process tests. This build alone does not establish that those exchange phases completed; their runtime results are recorded separately.
+
+### Independent cross-platform process evidence
+
+On 2026-10-17, the host-orchestrated public-file exchange completed both directions: **Apple owner to Android joiner, and Android owner to Apple joiner**. All **22 targeted phase executions passed**, including scoped cleanup. Apple's 11 phase executions each ran in a distinct process, verified by the generic phase/PID markers; these were separate from the ordinary 30-test run above.
+
+In each direction, the invitation, request, and Welcome resumed as the exact previously committed public bytes after process restart. The independently retained joiner accepted the authenticated Welcome after the admission deadline (`now + 600` in the synthetic clock), persisted and decrypted the authorized probe, then a fresh verification process recovered that pending inbox and rejected the consumed probe ciphertext. Acknowledgement succeeded and reopening showed an empty inbox. Both sides' scoped signing/AES keys, encrypted admission directories, and local lookup markers were removed by their cleanup phases.
+
+The public envelopes in both directions independently passed Node/OpenSSL signature and transcript/context verification. The host Node suite passed 23 tests, including the checked-in public Apple-owner exchange vector. Only public exchange envelopes and separately provisioned public pins crossed platform boundaries; no private MLS state or native private key was transferred. The owned Apple Simulator was shut down after the exchange.
+
+This establishes the bounded synthetic independent-client and restart-safe local admission/outbox/inbox path on Simulator and emulator. It does not establish physical hardware or lock enforcement, device reboot or power-loss durability, malicious whole-database rollback resistance, production network/QR transport, account or Guardian authorization, recovery, or general multi-member membership management.

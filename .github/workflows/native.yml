@@ -55,3 +55,11 @@ jobs:
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath native/apple/build
           CODE_SIGNING_ALLOWED=NO
+      - name: Compile independent admission exchange tests
+        run: >-
+          xcodebuild build-for-testing
+          -project native/apple/SquadtimeAppleProof.xcodeproj
+          -scheme AdmissionExchangeProof
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath native/apple/build
+          CODE_SIGNING_ALLOWED=NO

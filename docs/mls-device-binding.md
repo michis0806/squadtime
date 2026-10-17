@@ -1,7 +1,6 @@
 # Native device approval bound to MLS
 
-This is a **local, initial two-member enrollment binding proof**, not an onboarding
-service. The native process owns both synthetic MLS participants through the Rust
+This document preserves the **legacy local, initial two-member enrollment binding proof**, not an onboarding service. The successor [independent admission proof](independent-admission.md) keeps administrator and joiner states separate and exercises public-envelope exchange between independent app processes with pre-provisioned test pins. Both directions passed the separate-process exchange harness. The native process owns both synthetic MLS participants through the Rust
 bridge. It uses actual native P-256 keys, actual MLS KeyPackages, Add commits and
 Welcome processing. It does not connect independently running devices, establish
 account or Guardian authority, or implement a QR trust ceremony.
@@ -122,7 +121,7 @@ membership transaction, restart-safe outbox, distributed concurrent-commit
 resolution, or persisted authorization ledger. Retained registry objects and
 managed-language copies are not a whole-process memory-erasure guarantee.
 
-The [MLS ordering requirement](https://www.rfc-editor.org/rfc/rfc9420.html#section-13.5)
+The [MLS ordering requirement](https://www.rfc-editor.org/rfc/rfc9420.html#section-14)
 means production membership persistence and accepted-commit/outbox handling must
 be completed before Welcome is delivered between devices. The existing durable
 receive/inbox transaction covers subsequent application receive; it does not
@@ -153,7 +152,7 @@ approver pin. It does **not** parse/validate MLS membership or prove the true
 origin of the identity hashes; the Rust and native runtime tests supply that
 separate evidence. No private key or MLS snapshot is stored in the fixture.
 
-Still open: independently running device enrollment and trust bootstrap,
-durable admission/outbox and replay policy, more than two members, revocation,
+Still open: Cloudflare-backed onboarding/transport and production trust bootstrap,
+more than two members, general membership and revocation,
 key rotation, Guardian permissions, account binding, recovery, malicious state
 rollback, physical-device assurance and independent security review.

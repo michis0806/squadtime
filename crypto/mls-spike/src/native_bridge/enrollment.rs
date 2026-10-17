@@ -62,16 +62,16 @@ fn pending() -> &'static Mutex<BTreeMap<String, Pending>> {
     static PENDING: OnceLock<Mutex<BTreeMap<String, Pending>>> = OnceLock::new();
     PENDING.get_or_init(|| Mutex::new(BTreeMap::new()))
 }
-fn provider() -> Result<<AwsLcCryptoProvider as CryptoProvider>::CipherSuiteProvider> {
+pub(super) fn provider() -> Result<<AwsLcCryptoProvider as CryptoProvider>::CipherSuiteProvider> {
     AwsLcCryptoProvider::default()
         .cipher_suite_provider(CipherSuite::P256_AES128)
         .ok_or(BridgeRejected)
 }
-fn digest(bytes: &[u8]) -> Result<String> {
+pub(super) fn digest(bytes: &[u8]) -> Result<String> {
     let hashed = provider()?.hash(bytes).map_err(|_| BridgeRejected)?;
     Ok(hashed.iter().map(|byte| format!("{byte:02x}")).collect())
 }
-fn validate_public(key: &str) -> Result<SignaturePublicKey> {
+pub(super) fn validate_public(key: &str) -> Result<SignaturePublicKey> {
     let bytes = decode(key, 65)?;
     if bytes.len() != 65 || bytes[0] != 4 || encode(&bytes) != key {
         return Err(BridgeRejected);
@@ -83,7 +83,7 @@ fn validate_public(key: &str) -> Result<SignaturePublicKey> {
 }
 // Strict ASN.1 DER framing for two P-256 positive INTEGER scalars. AWS-LC
 // still performs the actual ECDSA verification. High-S is intentionally allowed.
-fn signature(value: &str) -> Result<Zeroizing<Vec<u8>>> {
+pub(super) fn signature(value: &str) -> Result<Zeroizing<Vec<u8>>> {
     let bytes = decode(value, 72)?;
     if bytes.len() < 8 || bytes[0] != 0x30 || bytes[1] as usize != bytes.len() - 2 {
         return Err(BridgeRejected);

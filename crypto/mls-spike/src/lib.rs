@@ -7,6 +7,7 @@ use mls_rs::{
     client_builder::MlsConfig,
     error::MlsError,
     group::{ApplicationMessageDescription, Group, ReceivedMessage},
+    mls_rs_codec::MlsDecode,
     Client, MlsMessage,
 };
 
@@ -70,7 +71,12 @@ impl<C: MlsConfig> ApplicationReceiver<C> {
         if packet.is_empty() || packet.len() > MAX_PACKET_BYTES {
             return Err(ReceiveError::InvalidPacket);
         }
-        let message = MlsMessage::from_bytes(packet).map_err(|_| ReceiveError::InvalidPacket)?;
+        let mut cursor = packet;
+        let message =
+            MlsMessage::mls_decode(&mut cursor).map_err(|_| ReceiveError::InvalidPacket)?;
+        if !cursor.is_empty() {
+            return Err(ReceiveError::InvalidPacket);
+        }
         let mut candidate = self.group.clone();
         let event = match candidate
             .process_incoming_message(message)

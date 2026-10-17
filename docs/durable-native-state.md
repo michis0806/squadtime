@@ -18,11 +18,11 @@ Validation state is recorded in [validation.md](validation.md). The bridge proto
 
 ## Boundaries and open work
 
-- The two-peer fixture is synthetic. A separate [local binding proof](mls-device-binding.md) now binds native P-256 approval to actual MLS identities, a KeyPackage and initial group admission, then passes the joined snapshot into this vault. Its pending admission is volatile and is not atomically committed with vault creation; independently running device enrollment remains open.
-- The bridge rejects MLS control traffic. Authorized group creation, sends, membership changes and their application side effects need a reviewed transaction path.
-- Guardian policy, user identity, onboarding, recovery and key lifecycle are not implemented by this proof. Vault/key creation requires a single provisioning owner; atomic cross-process key provisioning is not established.
+- A separate [independent admission proof](independent-admission.md) now binds native P-256 approval to the actual MLS identities, KeyPackage and initial one-administrator/one-joiner admission to a two-member group, while keeping admin and joiner secret states separate. Each role commits its state and exact public outbox in its own encrypted row under revision CAS; joining commits the joined state and received inbox before exposing plaintext. Public envelopes are exchanged through a local file-transport harness between independent app processes using pre-provisioned test pins. Both directions passed the separate-process exchange harness. The older [same-process proof](mls-device-binding.md) remains available and has a volatile pending registry.
+- This application-receive bridge rejects MLS control traffic. The separate admission API handles only the bounded initial Add/Welcome; general sends, membership changes and their application side effects still need a reviewed transaction path.
+- Cloudflare onboarding/transport, user identity and account/Guardian authority, recovery and full key lifecycle are not implemented. The harness uses pre-provisioned test pins, not a production trust ceremony. Vault/key creation requires a single provisioning owner; atomic cross-process key provisioning is not established.
 - SQLite row encryption does not stop deletion, database replacement, restoration of an older valid encrypted row, or a malicious rollback. Revision CAS coordinates writers that share the same current database; it is not a trusted monotonic counter across restore or devices.
-- Unit/instrumentation fault injection is not physical power-loss testing. No device reboot/power interruption claim follows unless separately validated.
+- Unit/instrumentation fault injection is not physical power-loss testing. No device reboot/power interruption claim follows unless separately validated. Real-hardware security level is not established.
 - The proof is not the complete native application, production secure storage, or app-wide end-to-end encryption. Production integration, backup semantics, cross-process coordination and independent security review remain open.
 
 ## Build prerequisites and memory boundary

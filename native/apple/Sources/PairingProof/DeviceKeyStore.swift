@@ -10,12 +10,14 @@ public enum ProofError: Error, Equatable {
 public struct DeviceKeyStore: Sendable {
     public enum Protection: String, Sendable { case secureEnclave, simulatorSoftware }
     private let tag: Data
+    let scopedAlias: String
     public let protection: Protection
 
     public init(alias: String) throws {
         guard !alias.isEmpty, alias.count <= 100,
               alias.utf8.allSatisfy({ (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 })
         else { throw ProofError.invalidAlias }
+        scopedAlias = alias
         tag = Data("squadtime.proof.\(alias)".utf8)
         #if targetEnvironment(simulator)
         protection = .simulatorSoftware

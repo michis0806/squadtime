@@ -29,6 +29,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 pub const MAX_CALL_BYTES: usize = 16 * 1024 * 1024;
 const MAX_SNAPSHOT_BYTES: usize = 8 * 1024 * 1024;
 const MAX_PACKET_BYTES: usize = 1024 * 1024;
+mod admission;
 mod enrollment;
 
 type BridgeConfig = WithCryptoProvider<
@@ -460,6 +461,15 @@ fn serialize(value: &impl Serialize) -> Result<Zeroizing<Vec<u8>>> {
 pub fn call(input: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
     if input.is_empty() || input.len() > MAX_CALL_BYTES {
         return Err(BridgeRejected);
+    }
+    #[derive(Deserialize)]
+    struct Route<'a> {
+        #[serde(borrow)]
+        op: &'a str,
+    }
+    let route: Route<'_> = serde_json::from_slice(input).map_err(|_| BridgeRejected)?;
+    if route.op.starts_with("admission") {
+        return admission::dispatch(input);
     }
     let command: Command = serde_json::from_slice(input).map_err(|_| BridgeRejected)?;
     match &command {

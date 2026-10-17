@@ -8,6 +8,24 @@ extern "C" {
 /* Development-only, synthetic MLS proof. All buffers are SECRET; never log.
  * UTF-8 JSON; standard padded Base64 values. Maximum input/output: 16 MiB.
  * {"op":"fixture"} -> {"snapshot":str,"packets":[str,str],"expected":[str,str]}
+ * Independent admission (stateless candidates; see docs/native-mls-bridge.md):
+ * admissioncreateadmin {adminPublicKey,now} -> {state,transcript}
+ * admissionpublishinvitation {state,signature,now} -> {state,outbox,kind}
+ * admissioncreatejoiner {invitation,trustedAdminPublicKey,devicePublicKey,now}
+ *   -> {state,transcript}
+ * admissionpublishrequest {state,signature,now} -> {state,outbox,kind}
+ * admissioninspectrequest {state,request,trustedDevicePublicKey,now} -> {transcript}
+ * admissionadmit {state,request,trustedDevicePublicKey,approvalSignature,now}
+ *   -> {state,outbox,kind:"welcome"}
+ * admissionjoin {state,welcome,now} -> {state,outbox:"",kind:"joined"}
+ * admissionresume {state} -> {outbox,kind}
+ * admissionreceive {state,packet} -> {state,plaintext,senderIndex}
+ * state is SECRET; maximum decoded 512 KiB. Public outbox maximum 128 KiB.
+ * Native encrypted revision CAS must commit state+outbox+inbox together before
+ * release/display. Resume returns exact stored bytes; no messages regenerated.
+ * Initial administrator and joining device have separate private state. Ready
+ * MLS state remains embedded; no standalone snapshot handoff is required.
+ * The following enrollment* operations are the legacy local-process proof:
  * {"op":"enrollmentprepare","devicePublicKey":b64SEC1,
  *  "approverPublicKey":b64SEC1,"now":uint53}
  *   -> {"pendingId":b64,"groupId":b64,"keyPackage":b64,

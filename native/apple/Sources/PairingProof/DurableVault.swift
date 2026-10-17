@@ -152,13 +152,16 @@ public actor DurableVault {
 }
 
 /// Connections are owned by one vault actor and never shared. No SQL includes secret values.
-private final class VaultDatabase {
+final class VaultDatabase {
     private var handle: OpaquePointer?
     private let directory: URL
+    private let fileName: String
     private var transient: sqlite3_destructor_type { unsafeBitCast(-1, to: sqlite3_destructor_type.self) }
 
-    init(directory: URL, create: Bool) throws {
+    init(directory: URL, create: Bool, fileName: String = "vault.sqlite") throws {
         self.directory = directory
+        self.fileName = fileName
+        guard ["vault.sqlite", "admission.sqlite"].contains(fileName) else { throw VaultError.malformed }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.protectionKey: FileProtectionType.complete])
         var protectedDirectory = directory
@@ -166,7 +169,7 @@ private final class VaultDatabase {
         values.isExcludedFromBackup = true
         try protectedDirectory.setResourceValues(values)
         try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: directory.path)
-        let path = directory.appendingPathComponent("vault.sqlite").path
+        let path = directory.appendingPathComponent(fileName).path
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | (create ? SQLITE_OPEN_CREATE : 0)
         let status = sqlite3_open_v2(path, &handle, flags, nil)
         guard status == SQLITE_OK else {
@@ -275,7 +278,7 @@ private final class VaultDatabase {
 
     private func protectFiles() throws {
         for suffix in ["", "-wal", "-shm"] {
-            var url = directory.appendingPathComponent("vault.sqlite\(suffix)")
+            var url = directory.appendingPathComponent("\(fileName)\(suffix)")
             guard FileManager.default.fileExists(atPath: url.path) else { continue }
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path)
             var values = URLResourceValues()

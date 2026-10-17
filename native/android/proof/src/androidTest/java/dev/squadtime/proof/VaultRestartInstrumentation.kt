@@ -14,13 +14,25 @@ import java.util.UUID
 class VaultRestartInstrumentation : AndroidJUnitRunner() {
     private var phase: String? = null
     private var restartRequested = false
+    private var admissionRequested = false
     override fun onCreate(arguments: Bundle?) {
         restartRequested = arguments?.getString("restartProof") == "true"
+        admissionRequested = arguments?.getString("admissionProof") == "true"
         phase = arguments?.getString("phase")
         super.onCreate(arguments)
     }
     private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).hex()
     override fun onStart() {
+        if (admissionRequested) {
+            var success = false
+            try { AdmissionExchangeHarness.run(targetContext, phase); success = true }
+            catch (_: Exception) { /* Return no state or provider diagnostic. */ }
+            finish(if (success) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply {
+                putString("admissionProof", if (success) "passed" else "rejected")
+                putInt("processId", android.os.Process.myPid())
+            })
+            return
+        }
         if (!restartRequested) { super.onStart(); return }
         val marker = File(targetContext.noBackupFilesDir, "mls-vault-restart-public-marker.json")
         var success = false

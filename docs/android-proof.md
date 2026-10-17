@@ -220,6 +220,89 @@ MLS snapshot, private key, packets or plaintext and can be independently checked
 with the repository's Node verifier. It remains app-private and is removed with
 scoped proof-host cleanup.
 
+## Independent-client durable admission proof
+
+`DurableAdmission` is a separate adapter for the stateless Rust owner and joiner
+state machines. Each participant creates its own MLS secrets in its own runtime;
+there is no shared pending registry or two-peer private fixture object. The
+original `PendingEnrollment` proof above remains available with its original
+local-only and memory-only limits.
+
+`AdmissionStore` uses a separate no-backup SQLite database and AndroidKeyStore
+AES-256-GCM key. A role's phase-specific opaque Rust state, exact outgoing public
+envelope, accepted public input/digest, immutable trusted approver pin, native
+signing-key reference and pending plaintext inbox are encrypted together in one
+row. AAD binds format, local vault UUID and revision. The native P-256 key is
+non-exportable; MLS private material is created by Rust in memory and encrypted
+at rest, not claimed to live inside Android secure hardware. Missing AES or
+signing keys on an existing database fail closed; reopening never regenerates
+them. Initial role configuration has no Rust state or outbox. Every subsequent
+transition commits candidate Rust state and public outbox in one captured-revision
+SQLite CAS transaction with WAL and synchronous FULL.
+
+The joiner obtains its trusted admin P-256 pin separately from the invitation.
+The owner similarly requires an independently trusted joining-device key and
+explicit `userConfirmed=true` before signing an admission approval. Native code
+validates exact domain-separated invitation, request and approval transcripts,
+public envelope schema, pinned keys, group/identity/KeyPackage digests and time
+windows before signing. Invitations and admission approval expire after their
+bounded window; an already approved Welcome may be delivered after the deadline.
+This test-provisioned pin model does not implement QR verification, account or
+Guardian authorization, key-change policy or production trust bootstrap.
+
+Only a committed outbox is exposed. Reopening and `resume()` return the identical
+stored Base64 envelope; they do not regenerate MLS randomness or repeat an Add.
+Repeated phase calls accept only their exact previously committed public input.
+They return the durable outbox without repeating a transition. A stale writer or
+same-instance reentrant transition cannot overwrite a committed successor.
+Before-commit faults preserve the previous phase/outbox. After-commit uncertainty
+returns no new outbox or plaintext and requires reopening to discover the exact
+committed result.
+
+`joinerFinish` stages both Welcome processing and the synthetic post-join probe
+receive. One CAS commit then records the terminal joined state, consumed MLS
+packet/replay state and one pending inbox item together. No handoff to a second
+database is involved. Plaintext is available only by reading the committed inbox;
+acknowledgement removes it atomically while retaining terminal admission state.
+The historical local proof's separate admission/vault transaction limit therefore
+still applies to that older API, not this new adapter.
+
+Decoded role state is limited to 512 KiB, public envelopes to 128 KiB, inbox to
+128 entries and the entire serialized encrypted payload to 1 MiB. Aggregate bounds
+can reject earlier. These bounds keep Android CursorWindow reads reliable. JSON
+and Base64 still create immutable JVM strings; no comprehensive memory-erasure
+claim is made. Whole-database rollback, physical power loss, concurrent initial
+creation across processes and recovery remain outside this proof.
+
+### Public-only process exchange runner
+
+The existing instrumentation runner accepts `-e admissionProof true -e phase PHASE`
+and reports only `admissionProof=passed|rejected`, a process ID and result code.
+Missing phases or missing persisted role markers fail. The app-private public
+exchange files are `files/admission-exchange/input.json` and `output.json`.
+Inputs are strict JSON wrappers:
+
+| Phase | Input |
+| --- | --- |
+| `ownerStart` | `now` |
+| `joinerStart` | `now`, `outbox` (invitation), `trustedAdminPublicKey` |
+| `ownerAdmit` | `now`, `outbox` (request), `trustedDevicePublicKey`, `userConfirmed: true` |
+| `joinerFinish` | `now`, `outbox` (Welcome) |
+| `resume`, `verifyInbox`, `cleanup` | Empty object |
+
+Output is exactly `kind`, `outbox`, `nativePublicKey`. All envelope and key values
+are canonical Base64. No secret state, snapshot, private key or plaintext is
+included. The local marker contains only synthetic vault UUID and role under
+`noBackupFilesDir`; it is never a source of trust. The exchange harness creates
+state only in the explicit start phases and never silently resets a missing or
+invalid role database.
+
+After a restart, `verifyInbox` checks the fixed synthetic probe, rejects its
+already consumed MLS ciphertext, acknowledges it and reopens to an empty inbox.
+`cleanup` deletes only the synthetic admission database and its two key aliases.
+The shared test orchestrator moves public envelopes and separately provisioned
+trust pins between participants and force-stops the proof host before each phase.
+
 ## Validation status
 
 Local APK and instrumentation APK builds passed on 2026-10-17. Five connected
@@ -302,3 +385,65 @@ The scoped host/test packages were uninstalled and the task-owned emulator was
 shut down after public evidence verification. The vault schema did not change in
 this increment, so the earlier cross-process restart result remains historical
 evidence and was not rerun or represented as a new enrollment restart guarantee.
+
+
+### Independent-client Android validation (2026-10-17)
+
+After repackaging the final stateless Rust admission library, direct
+instrumentation on `emulator-5580` (Android API 37, `arm64-v8a`) passed **27 tests**
+with zero failures or skips in 17.922 seconds: eight new independent-client
+admission tests plus all nineteen earlier tests. The new tests cover exact
+outbox reopening and idempotent phase retries, delayed already-approved Welcome
+delivery, atomic join/probe/inbox storage, replay rejection, before-commit rollback,
+after-commit uncertainty and recovery, independent-connection CAS, same-instance
+reentrant CAS, separately pinned invitation/device trust, explicit consent,
+expiry, altered Welcome/probe rejection, missing AES/P-256 keys, ciphertext
+tampering, oversized public input and acknowledgement faults. Each rejected
+candidate leaves the last committed phase and outbox authoritative.
+
+All ordinary-suite synthetic role databases and aliases were deleted in test
+cleanup. The proof host/test runner and owned emulator were deliberately retained
+for the separate Apple/Android process-exchange test recorded below.
+
+
+### Bidirectional independent process exchange (2026-10-17)
+
+The common public-only harness completed both directions successfully: Apple
+owner with Android joiner, then Android owner with Apple joiner. All **22 phases**,
+including scoped cleanup, passed in fresh application processes. Each participant
+was stopped before every phase. Both directions recovered byte-identical committed
+invitation, request and Welcome outboxes after restart, as well as the terminal
+joined result with an empty outgoing envelope. Node/OpenSSL independently verified
+the three public signatures and explicit trust-pin/transcript bindings for both
+exchanges; native MLS authenticated the Welcome and received probe.
+
+The invitation clock was `1700000000`, admission completed at `now + 2`, and
+Welcome delivery deliberately occurred at `now + 600`, after expiry. This proves
+resuming an already authorized delivery, not authorizing a new expired admission.
+After joining, a subsequent fresh process recovered the committed probe inbox,
+rejected the consumed ciphertext, acknowledged it, and reopened an empty inbox.
+No private participant state was transferred between platforms.
+
+Android process evidence was:
+
+| Android role | Phase | Process ID |
+| --- | --- | --- |
+| Joiner | Request creation | 3977 |
+| Joiner | Exact request resume | 4029 |
+| Joiner | Late Welcome, atomic join/probe commit | 4078 |
+| Joiner | Joined-state resume | 4132 |
+| Joiner | Inbox/replay/acknowledgement verification | 4181 |
+| Joiner | Scoped cleanup | 4230 |
+| Owner | Invitation creation | 4278 |
+| Owner | Exact invitation resume | 4327 |
+| Owner | Confirmed admission and Welcome commit | 4377 |
+| Owner | Exact Welcome resume | 4430 |
+| Owner | Scoped cleanup | 4488 |
+
+Ignored local evidence was recorded under
+`.local/admission-exchange/2026-10-17T21-49-40-627Z`. The proof host and test packages
+were uninstalled and the task-owned `emulator-5580` was shut down afterward.
+These are simulator/emulator results under separately provisioned synthetic pins;
+they do not establish production trust bootstrap, real-device hardware security,
+Guardian policy, power-loss durability, malicious-storage rollback protection or
+recovery support.

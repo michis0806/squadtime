@@ -72,6 +72,17 @@ targets:
       base:
         TEST_HOST: '$(BUILT_PRODUCTS_DIR)/ProofHost.app/ProofHost'
         BUNDLE_LOADER: '$(TEST_HOST)'
+  AdmissionExchangeProofTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [ExchangeTests]
+    dependencies:
+      - target: PairingProof
+      - target: ProofHost
+    settings:
+      base:
+        TEST_HOST: '$(BUILT_PRODUCTS_DIR)/ProofHost.app/ProofHost'
+        BUNDLE_LOADER: '$(TEST_HOST)'
 schemes:
   PairingProof:
     build:
@@ -87,3 +98,10 @@ schemes:
         ProofHost: all
     test:
       targets: [VaultRestartProofTests]
+  AdmissionExchangeProof:
+    build:
+      targets:
+        PairingProof: all
+        ProofHost: all
+    test:
+      targets: [AdmissionExchangeProofTests]

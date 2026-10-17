@@ -4,10 +4,19 @@ import Security
 
 /// AES wrapping key in Keychain, not a Secure Enclave AES key. No public export API.
 struct VaultKeyStore {
+    enum Purpose: String {
+        case vault = "squadtime.proof.vault"
+        case admission = "squadtime.proof.admission"
+    }
     let vaultID: String
+    private let purpose: Purpose
+    init(vaultID: String, purpose: Purpose = .vault) {
+        self.vaultID = vaultID
+        self.purpose = purpose
+    }
     private var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: "squadtime.proof.vault",
+         kSecAttrService as String: purpose.rawValue,
          kSecAttrAccount as String: vaultID,
          kSecAttrSynchronizable as String: false]
     }
