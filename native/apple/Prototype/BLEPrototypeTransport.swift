@@ -118,7 +118,7 @@ final class BLEPrototypeTransport: NSObject {
     }
     private func becameReady() {
         guard active, !ready else { return }
-        ready = true; status = "Bluetooth connected. Device confirmation is still required."
+        ready = true; status = "Bluetooth connected."
         onReady?()
     }
     private func unavailable(_ state: CBManagerState) {

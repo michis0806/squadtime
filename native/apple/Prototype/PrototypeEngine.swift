@@ -6,6 +6,7 @@ import PairingProof
 struct PrototypeSnapshot: Sendable {
     let profile: PrototypeProfile?
     var phase = ""
+    var pendingTestCount = 0
     var code = ""
     var fingerprint = ""
     var bluetoothReview = false
@@ -175,7 +176,9 @@ actor PrototypeEngine {
                 case "invitation": result.status = "Show your code. Then scan the other device's request."
                 case "request": result.status = "Show your request code to the first device, then check the relay."
                 case "welcome": result.status = p.contactConfirmed ? "Both test devices confirmed." : "Encrypted test sent. Awaiting signed receipt."
-                case "joined": result.status = (try await admission.pendingMessages()).isEmpty ? "Test contact connected." : "Encrypted test received. Stored securely on this device."
+                case "joined":
+                    result.pendingTestCount = try await admission.pendingMessages().count
+                    result.status = result.pendingTestCount == 0 ? "Test contact connected. Encrypted test acknowledged." : "Encrypted test received. Stored securely on this device."
                 default: result.status = "Local setup interrupted. Reopen to retry; explicit reset may be required."
                 }
             }
@@ -202,6 +205,7 @@ actor PrototypeEngine {
 final class PrototypeModel {
     var profile: PrototypeProfile?
     var phase = ""
+    var pendingTestCount = 0
     var code = ""
     var peerFingerprint = ""
     var bluetoothReview = false
@@ -221,7 +225,7 @@ final class PrototypeModel {
             if !opening, let result = try? await engine.load() { apply(result) }
         }
     }
-    private func apply(_ s: PrototypeSnapshot) { profile = s.profile; phase = s.phase; code = s.code; peerFingerprint = s.fingerprint; status = s.status; bluetoothReview = s.bluetoothReview }
+    private func apply(_ s: PrototypeSnapshot) { profile = s.profile; phase = s.phase; pendingTestCount = s.pendingTestCount; code = s.code; peerFingerprint = s.fingerprint; status = s.status; bluetoothReview = s.bluetoothReview }
     func load() async { await run({ try await engine.load() }, opening: true) }
     func create(nickname: String, avatar: String) async { await run { try await engine.create(nickname: nickname, avatar: avatar) } }
     func configure(_ input: String) async { await run { try await engine.configure(input) } }

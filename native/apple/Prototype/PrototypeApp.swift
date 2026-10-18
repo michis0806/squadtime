@@ -21,6 +21,7 @@ struct PrototypeView: View {
     var body: some View {
         NavigationStack {
             Form {
+                let completed = model.phase == "done" || (model.phase == "joined" && model.pendingTestCount == 0)
                 Section {
                     Label("Synthetic test data only", systemImage: "flask")
                     Text("Development prototype. Do not enter real child data. Pairing does not prove physical presence, age, identity or parental approval.").font(.footnote).foregroundStyle(.secondary)
@@ -36,14 +37,14 @@ struct PrototypeView: View {
                     }
                     Section("One direct test contact") {
                         Text(model.status)
-                        if model.phase == "joined" { Button("Acknowledge encrypted test") { act { await model.acknowledge() } } }
+                        if model.phase == "joined" && model.pendingTestCount > 0 { Button("Acknowledge encrypted test") { act { await model.acknowledge() } } }
                         if profile.manual { Text("Manual transfer · no proximity verification").font(.footnote).foregroundStyle(.orange) }
                         if model.phase == "ready" {
                             Button("Create pairing code") { act { await model.start() } }
                             Button("Scan pairing code") { model.bluetooth.cancel(); scanner = true }
                         } else if !model.phase.isEmpty {
                             if !model.code.isEmpty { QRCodeView(code: model.code); ShareLink("Share public pairing code", item: model.code) }
-                            Button("Scan other device code") { model.bluetooth.cancel(); scanner = true }
+                            if !completed && ["invitation", "request", "welcome"].contains(model.phase) { Button("Scan other device code") { model.bluetooth.cancel(); scanner = true } }
                             Button("Check relay / retry stored outbox") { act { await model.refresh() } }
                         }
                         if !model.peerFingerprint.isEmpty {
@@ -54,11 +55,13 @@ struct PrototypeView: View {
                             Button("Confirm this direct test contact") { act { await model.confirm(); confirmed = false } }.disabled(!confirmed)
                         }
                     }
-                    BLEPairingSection(coordinator: model.bluetooth)
-                    Section("Manual fallback") {
-                        Text("Pasted or forwarded codes are manual transfer, not proximity verification.").font(.footnote)
-                        TextField("Public pairing code", text: $input, axis: .vertical).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        Button("Use pasted public code") { act { confirmed = false; await model.receive(input, manual: true); input = "" } }.disabled(input.isEmpty)
+                    if !completed {
+                        BLEPairingSection(coordinator: model.bluetooth)
+                        Section("Manual fallback") {
+                            Text("Pasted or forwarded codes are manual transfer, not proximity verification.").font(.footnote)
+                            TextField("Public pairing code", text: $input, axis: .vertical).textInputAutocapitalization(.never).autocorrectionDisabled()
+                            Button("Use pasted public code") { act { confirmed = false; await model.receive(input, manual: true); input = "" } }.disabled(input.isEmpty)
+                        }
                     }
                     Section { Button("Reset this prototype", role: .destructive) { resetting = true } }
                 } else if !model.blocked {
