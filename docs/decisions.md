@@ -51,6 +51,25 @@ Independent profile management does not prove adulthood.
 remain to be reviewed. Public registration is still disabled. See
 [onboarding.md](onboarding.md).
 
+### A-007: Limit new contacts to direct confirmation or one introduction
+
+**Decision:** New profiles use a baseline with two contact paths: a mutual,
+short-lived QR exchange confirmed on both devices, or a bilateral introduction
+by a contact personally connected to both participants. An introduced connection
+alone cannot authorize further introductions. Pending introductions bind exactly
+two profiles, expire, are single-use and can be revoked. Blocking remains available.
+
+**Consequence:** The same eligibility baseline must govern group sharing and new
+members. A group invitation or one familiar member is not a blanket exception for
+all participants. Guardian settings may tighten the baseline; unlinking a Guardian
+or changing management mode does not remove it. Directly connected is distinct
+from Guardian-approved, and neither status proves age or legal identity.
+
+**Boundary:** QR codes can be relayed and do not establish physical presence.
+Cryptographic binding, key-change handling, enforceable introduction evidence,
+revocation effects and group-admission UX remain design work. No production contact
+verification or social graph is implemented. See [onboarding.md](onboarding.md).
+
 ## Open
 
 - **Key lifecycle:** generation, device binding, rotation, backup, recovery and deletion.

@@ -28,8 +28,16 @@ Similar apps exist, but none is designed for children or includes parents. Most 
 The first version focuses on planning. Everything else comes later.
 
 - **Child-first profile:** the child creates one player profile with a nickname and an avatar from a fixed selection; no photos. The app creates a local identity and device keys automatically. No email, password or parent player profile is required initially.
-- **Local-first start:** before any remote personal-data processing for which the required consent is unresolved, the child can make a local offline scheduling draft. The child can then join a group by invitation or QR code, or create a group. Group activation depends on the required consent, verified membership and key verification; these are separate checks.
-- **Groups by invitation:** join only with a code or QR code; no public search. Around 10 members maximum. Public profiles and free-form chat are out of scope for the safe default.
+- **Local-first start:** before any remote personal-data processing for which the required consent is unresolved, the child can make a local offline scheduling draft. The child can establish contacts under the contact policy or create a group. Group activation depends on the required consent, verified membership and key verification; these are separate checks.
+- **Groups require eligible contacts:** no public friend directory or general
+  forwardable invitation links. A new profile can connect directly through a
+  mutual short-lived QR exchange confirmed on both devices, or accept a one-time,
+  revocable-pending introduction from a personally connected mutual friend who is
+  personally connected to both exact recipient profiles. Both recipients accept introductions.
+  Contact eligibility also gates every new group membership and group sharing;
+  group consent details remain open. See the accepted, unimplemented
+  [contact policy](docs/onboarding.md#accepted-contact-policy). Around 10 members
+  maximum. Public profiles and free-form chat are out of scope for the safe default.
 - **Availability:** recurring weekly times (“Mon/Wed 4–6 pm”) plus exceptions for specific days.
 - **Overlap view:** the core feature. It suggests the best time, for example, “4 of 5 can do Wed 5–6 pm, and everyone has Mario Kart on Switch.”
 - **Sessions:** suggest a time, game and platform; others tap “Join” or “Can’t make it.”
@@ -64,14 +72,21 @@ An optional later guardian-management feature may let a guardian link to multipl
 **How joining a group works**
 
 1. The child creates a player profile and keeps a local scheduling draft.
-2. The child scans or enters an invitation, or creates a group.
+2. The child connects directly, accepts an eligible introduction, or creates a group.
 3. The app verifies membership and keys; remote group activation waits for the required consent and verification checks.
-4. The safe default is invite-only membership, no public profiles and no free-form chat. Any friend-count threshold is an optional guardian setting and applies only to profiles linked to that guardian.
+4. Every new member must meet the same contact eligibility policy. A QR exchange
+   alone does not prove physical presence, identity, age or Guardian authority.
+   There is no assumption that knowing one member is enough to consent to every
+   other member. Blocking is available; no schedules or inventory are shared before
+   consent. Guardian settings may tighten the baseline, while unlinking a Guardian
+   or switching to self-managed status does not remove it. Mixed-age restrictions
+   remain in force.
 
 **Settings per linked child**
 
-- **Mode:** optional threshold *n* (for example 1 or 2), “always free” or “always ask.” This lets the app adapt as the child grows. It applies only to profiles explicitly linked to that guardian.
-- **Approve friends:** someone who scans in person by QR code may be counted as approved for linked profiles. Guardians can turn this off and approve friends manually.
+- **Additional restrictions:** a Guardian may add stricter contact or group
+  approval rules for linked profiles. These do not replace the baseline contact
+  eligibility, establish identity or age, or relax mixed-age restrictions.
 - **Time window:** for example, “weekdays 3–7 pm.” The child plans only within those times. The console itself does not lock the app; the app points parents to Sony and Nintendo parental-control apps for that.
 - **Age ratings as information:** parents see USK/PEGI ratings for games in the inventory (from IGDB), without blocking.
 - **Weekly overview:** planned sessions at a glance.
@@ -90,13 +105,16 @@ Parental consent may be obtained through a separate lightweight web approval. Th
 
 **Adults in groups with children**
 
-- Groups for adults only work without restrictions.
+- Adult-only groups have no child-specific Guardian limits; the baseline contact policy still applies.
 - The existing target restriction remains: adults may join a group with children only as an authorized parent or approved contact for at least one child in that group. How this authority is established for profiles without a guardian link remains open; simplifying onboarding does not silently relax this restriction.
+- A direct personal connection under the contact policy does not by itself mean
+  that a Guardian has approved an adult for a child.
 - In mixed groups, all children can see that an adult is a member.
 
 **Optional progression of guardian settings**
 
-1. **Guided:** linked guardian settings may set a friend threshold *n* and time windows.
+1. **Guided:** linked guardian settings may add stricter contact and group
+   approval rules and set time windows.
 2. **More autonomy:** the guardian may relax or remove those limits; the child retains their own player profile.
 3. **Unlinked:** guardian links and permissions may end without converting the child into an adult account. Any retained data, consent and key handling need an explicit flow.
 
@@ -147,7 +165,7 @@ The earlier provider comparison is retained for context, not as the current reco
 - What proof method and legal basis are appropriate for parental consent, and which remote processing must wait for it?
 - How should the separate web approval be verified, revoked and retained without requiring a parent player profile?
 - What explicit guardian permission scopes are useful, and how do unlinking, deletion and recovery work without granting key access by default?
-- What happens if approved friends leave a group and the optional linked-profile threshold is no longer met? Proposal: the child stays in the group and the guardian gets a notice.
+- What group-consent experience should explain and approve all proposed members?
 - Free, one-time purchase or parent subscription? This determines whether an IGDB partnership is needed.
 - Should both parents have access to a child profile?
 

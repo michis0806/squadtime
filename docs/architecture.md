@@ -43,6 +43,22 @@ None automatically conveys MLS membership or content keys. A passkey authenticat
 a login; it does not recover software MLS secrets. Identity/age assurance, parental
 verification, encrypted Guardian sharing and lost-device recovery remain open.
 
+## Contact eligibility and cryptographic verification
+
+The accepted contact baseline distinguishes personally connected and introduced
+relationships. A valid introduction requires the introducer to be personally
+connected to both participants; receiving an introduction does not itself create
+further introduction authority. Both participants approve a scoped, expiring,
+single-use invitation. Contact eligibility also applies before group data becomes
+visible and when members are added; exact group authorization UX remains open.
+
+These relationship claims need authenticated evidence bound to player identities
+and their authorized keys. A nickname, server-provided directory entry or forwarded
+QR code is insufficient. Direct confirmation, Guardian approval, parental consent,
+MLS membership and account/device key continuity are separate properties. Neither
+this product decision nor the current synthetic admission proof implements that
+production evidence, its revocation rules or a key-transparency service.
+
 ## DEV relay status
 
 The first backend step is a development relay for synthetic test clients. It uses random, purpose- and scope-limited bearer credentials; only their hashes are stored. There is no public account creation or finished end-user identity onboarding. Credentials must not appear in Git, documentation, logs or example configuration.

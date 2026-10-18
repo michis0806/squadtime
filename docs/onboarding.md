@@ -11,7 +11,8 @@ A player can start without a parent first installing Squadtime or creating a
 player account. One player profile persists as devices, login methods and Guardian
 relationships are added later; these changes do not create a replacement player.
 
-1. Open an invitation link, scan a QR code, or choose to start a play group.
+1. Choose to start a play group or connect with an eligible contact under the
+   accepted contact policy below.
 2. Pick a nickname and a built-in avatar. Generate the local player identifier
    and device keys automatically; do not ask for email or a password at this step.
 3. Prepare a game/time choice locally. Keep the draft on the device while any
@@ -78,11 +79,13 @@ this proposed browser verification flow:
 
 ## Parent management and default boundaries
 
-Without a Guardian link, use product-wide defaults: invitation-only groups, no public
-profile search, built-in avatars and preset messages instead of free chat. These
-reduce exposure but do not establish a safe group or prove who is using a device.
-Do not label limits as parent-approved when no parent set them. Individual time
-windows and approved-friend thresholds belong to explicitly managed profiles.
+Without a Guardian link, apply the same baseline contact eligibility described
+below. Do not label contacts as parent-approved when no parent set them. Guardians
+can tighten these defaults for profiles they manage; removing a Guardian link or
+switching to self-managed status does not remove the baseline. Existing restrictions
+for mixed-age groups remain in force. Built-in avatars, no public profile search
+and preset messages instead of free chat remain the product defaults. They reduce
+exposure but do not prove that a contact or group is safe.
 
 Present management, schedule visibility, membership approval, deletion and recovery
 as separate permissions. Granting consent does not disclose content keys, make a
@@ -93,6 +96,34 @@ Removing or reducing a Guardian role preserves the player profile and group iden
 when authorized. It does not prove the player is an adult. The conditions for a
 minor to change these permissions remain part of the authorization design, not an
 unrestricted child-controlled toggle.
+
+## Accepted contact policy
+
+Status: accepted product design, 2026-10-18; unimplemented. This policy defines
+contact eligibility, not identity assurance, parental consent, device trust or group
+consent. Applicable authorization for remote processing remains a separate gate.
+
+A new profile may establish a contact in either of two ways:
+
+- **Direct connection:** the profiles are personally connected through a mutual,
+  short-lived QR exchange, and both devices confirm the exchange.
+- **Introduction:** a personally connected mutual friend introduces two exact
+  profile identities, and that introducing friend is personally connected to each
+  recipient. The introduction is bound to those identities, expires, can be revoked
+  while pending, and can be used only once. Both recipients must accept before the
+  contact is established.
+
+An introduced contact receives no introduction privilege merely because they were
+introduced. They may introduce others only after separately establishing a direct
+personal connection with those people. There is no general forwardable invitation
+link or public friend directory. No schedules, game inventory or other private
+planning data are shared before the relevant consent and membership approval.
+
+A QR exchange alone does not prove physical presence, real name, age or Guardian
+authority. Blocking is available. Contact eligibility must also gate group sharing
+and every new group membership so a group invitation cannot create a stranger
+backdoor. The precise group-consent experience remains open; one known friend is not
+assumed to be sufficient approval for every other group member.
 
 ## Device loss and later setup
 
