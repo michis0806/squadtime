@@ -1,6 +1,6 @@
 # Squadtime
 
-Shared play sessions for friend groups, within boundaries set by parents.
+Shared play sessions for friend groups, with safe defaults and optional parent management.
 
 **Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. The product's native iOS and Android apps are not yet implemented. Native proofs now cover device approval, encrypted MLS receive state, and a bounded initial admission between separate administrator and joining-client processes. The admission harness exchanges public envelopes through local file transport using pre-provisioned test pins. Both Apple-to-Android and Android-to-Apple exchanges passed with fresh app processes between phases. Cloudflare onboarding/transport, account and Guardian authority, recovery, and general membership remain open. See [native/README.md](native/README.md), [docs/independent-admission.md](docs/independent-admission.md), and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
 
@@ -10,13 +10,14 @@ Shared play sessions for friend groups, within boundaries set by parents.
 - `api/openapi.yaml`: shared API contract for the DEV relay.
 - `crypto/mls-spike/`: runnable MLS protocol tests with freshly generated test identities.
 - `docs/architecture.md`, `docs/threat-model.md`, `docs/decisions.md`: architecture, boundaries and open decisions.
+- `docs/onboarding.md`: accepted player-initiated onboarding, separate consent and optional Guardian access; implementation remains open.
 - `docs/crypto-spike.md`: library comparison, evidence and known integration limits.
 - `docs/mls-state-transactions.md`: staged MLS receive behavior and transaction boundaries.
 - `docs/durable-native-state.md`: native encrypted MLS checkpoint/inbox proof and its limits.
 - `docs/mls-device-binding.md`: earlier same-process native-signature binding proof.
 - `docs/independent-admission.md`: successor proof for separate administrator and joining-client processes, with public-envelope exchange and encrypted admission state.
 - `native/README.md`, `docs/device-pairing-proof.md`: implemented device-approval proof and its limited scope.
-- `squadtime-konzept.md`: original product concept; newer architecture decisions govern technical deviations.
+- `squadtime-konzept.md`: product concept, including the revised onboarding direction; architecture decisions govern technical deviations.
 
 ## Run locally
 

@@ -24,6 +24,25 @@ Login/passkeys and device encryption keys are separate. Successful login alone m
 
 At least the routing and operational metadata needed by the server remain visible, including IDs, membership/access relationships, timestamps and requested routes. The exact metadata inventory still needs to be defined and minimized. The server must not decrypt content.
 
+## Player identity, consent and Guardian access
+
+The accepted [onboarding design](onboarding.md) begins with a local player profile
+and automatic device-key setup. No parent player account is required to begin.
+One stable player identity can later acquire additional authorized devices, login
+methods and optional Guardian relationships. A Guardian can manage multiple children
+without maintaining a personal player profile.
+
+Keep these logical records separate: player identity, authorized device, scoped
+consent evidence, and Guardian identity/permission grant. This is not a finalized
+schema or a production account API. Where authorization is required, local preparation
+must not trigger remote personal-data processing before it is resolved. Platform
+installation approval alone does not resolve app-specific consent.
+
+Consent, management, schedule visibility and recovery are separate capabilities.
+None automatically conveys MLS membership or content keys. A passkey authenticates
+a login; it does not recover software MLS secrets. Identity/age assurance, parental
+verification, encrypted Guardian sharing and lost-device recovery remain open.
+
 ## DEV relay status
 
 The first backend step is a development relay for synthetic test clients. It uses random, purpose- and scope-limited bearer credentials; only their hashes are stored. There is no public account creation or finished end-user identity onboarding. Credentials must not appear in Git, documentation, logs or example configuration.
