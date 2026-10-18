@@ -30,6 +30,10 @@ class MainActivity : Activity() {
     private var busy = false
     private var foreground = false
     private var destroyed = false
+    private val profileForm = ProfileForm()
+    private var formErrors = ProfileFormErrors()
+    private var nicknameField: EditText? = null
+    private var relayField: EditText? = null
     private val ink = Color.rgb(27, 38, 65)
     private val purple = Color.rgb(100, 77, 218)
     private val avatars = arrayOf("🦊 Fox", "🐼 Panda", "🐙 Octopus", "🐯 Tiger")
@@ -85,31 +89,58 @@ class MainActivity : Activity() {
         note.addView(text("LOCAL DEVICE PROTOTYPE",12f,true))
         note.addView(text("Synthetic test profiles only. One direct contact and one encrypted test. No production onboarding, introductions, recovery or general chat.",14f))
         val screen = model.optString("screen")
+        nicknameField = null; relayField = null
         if (screen == "profile" || screen == "home") {
+            val draft = profileForm.display(ProfileDraft(model.optString("nickname"),model.optString("relay"),model.optInt("avatar")))
             val profileCard = card()
             profileCard.addView(text("Your test profile",23f,true))
-            val nickname = edit("Test nickname",model.optString("nickname"))
+            val nickname = edit("Test nickname",draft.nickname)
             nickname.filters = arrayOf(InputFilter.LengthFilter(64))
+            nickname.error = formErrors.nickname
+            nicknameField = nickname
+            nickname.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    profileForm.edit(profileForm.current().copy(nickname = s.toString()))
+                    formErrors = formErrors.copy(nickname = null); nickname.error = null
+                }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
             profileCard.addView(nickname)
             val avatar = Spinner(this).apply {
                 adapter = ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,avatars)
-                setSelection(model.optInt("avatar"))
+                setSelection(draft.avatar)
+                onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                        profileForm.edit(profileForm.current().copy(avatar = position))
+                    }
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
             }
             profileCard.addView(avatar,LinearLayout.LayoutParams(-1,dp(56)))
             profileCard.addView(text("Local test relay",17f,true))
-            val relay = edit("http://192.168.1.2:8789",model.optString("relay"))
+            val relay = edit("http://192.168.1.2:8789",draft.relay)
             relay.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            relay.error = formErrors.relay
+            relayField = relay
+            relay.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    profileForm.edit(profileForm.current().copy(relay = s.toString()))
+                    formErrors = formErrors.copy(relay = null); relay.error = null
+                }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
             profileCard.addView(relay)
             profileCard.addView(text("Use the private IPv4 address of your test Mac. HTTP is allowed only on a local test network. Your profile is encrypted locally; a nickname hint is included in your QR.",13f))
             profileCard.button(if (screen == "profile") "Create local profile" else "Save profile and relay") {
-                val name = nickname.text.toString().trim(); val origin = relay.text.toString().trim(); val selected = avatar.selectedItemPosition
-                runWork { controller.saveProfile(name,selected,origin) }
+                submitProfile()
             }
             if (screen == "home") {
                 val connect = card()
                 connect.addView(text("Meet your first contact",23f,true))
                 connect.addView(text("Confirm the intended test device on both screens. A QR can be forwarded and does not prove presence, age, identity or Guardian approval.",14f))
-                connect.button("Show my code") { runWork { controller.showCode() } }
+                connect.button("Save profile and show my code") { submitProfile(showCode = true) }
                 connect.button("Scan a code") { scan() }
                 connect.button("Paste code · manual transfer test") { paste() }
             }
@@ -173,12 +204,33 @@ class MainActivity : Activity() {
         if (screen != "profile" && screen != "loading") column.button("Reset this prototype") {
             AlertDialog.Builder(this).setTitle("Delete this prototype’s local data?")
                 .setMessage("This deletes the test profile, device keys, contact and encrypted inbox belonging to Squadtime DEV on this device. Recovery is not supported.")
-                .setNegativeButton("Cancel",null).setPositiveButton("Delete local prototype data") { _, _ -> runWork { controller.reset() } }.show()
+                .setNegativeButton("Cancel",null).setPositiveButton("Delete local prototype data") { _, _ -> runWork(onSuccess = { profileForm.committed(); formErrors = ProfileFormErrors(); render() }) { controller.reset() } }.show()
         }
         setContentView(scroll)
     }
     private fun groupFingerprint(value: String) = value.chunked(4).joinToString(" ")
-    private fun runWork(showBusy: Boolean = true, operation: () -> JSONObject) {
+    private fun submitProfile(showCode: Boolean = false) {
+        if (busy) return
+        formErrors = profileForm.validate(requireRelay = showCode)
+        nicknameField?.error = formErrors.nickname
+        relayField?.error = formErrors.relay
+        if (formErrors.hasErrors) {
+            status.text = "Check the highlighted fields. Your entries have been kept."
+            if (formErrors.nickname != null) nicknameField?.requestFocus() else relayField?.requestFocus()
+            return
+        }
+        val draft = profileForm.current()
+        runWork(
+            failureMessage = "Could not save the local profile securely. Your entries have been kept. Check device storage and retry. A missing local key requires an explicit reset; it will not be replaced automatically.",
+            onSuccess = {
+                profileForm.committed(); formErrors = ProfileFormErrors(); render()
+                if (showCode) runWork { controller.showCode() }
+            }
+        ) { controller.saveProfile(draft.nickname,draft.avatar,draft.relay) }
+    }
+    private fun runWork(showBusy: Boolean = true,
+                        failureMessage: String = "Could not complete the encrypted test. Check the relay connection, code expiry and selected device. Saved keys and committed outboxes are retained; retry or explicitly reset.",
+                        onSuccess: (() -> Unit)? = null, operation: () -> JSONObject) {
         if (busy || destroyed) return
         busy = true
         if (showBusy) render()
@@ -192,7 +244,7 @@ class MainActivity : Activity() {
             handler.post {
                 if (!destroyed) {
                     busy = false; model = result; render()
-                    if (failure) status.text = "Could not complete the test. Check the relay, code expiry and selected device. Saved keys and committed outboxes are retained; retry or explicitly reset."
+                    if (failure) status.text = failureMessage else onSuccess?.invoke()
                 }
             }
         }

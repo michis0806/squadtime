@@ -21,9 +21,9 @@ jobs:
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865"'
       - name: Build Rust MLS for Android
         run: node scripts/build-native-mls.mjs android
-      - name: Compile proof, prototype and instrumentation APKs
+      - name: Compile native APKs and test prototype form behavior
         working-directory: native/android
-        run: ./gradlew :proof:assembleDebug :proof:assembleDebugAndroidTest :prototype:assembleDebug :prototype:assembleDebugAndroidTest --no-daemon --console=plain
+        run: ./gradlew :proof:assembleDebug :proof:assembleDebugAndroidTest :prototype:assembleDebug :prototype:assembleDebugAndroidTest :prototype:testDebugUnitTest --no-daemon --console=plain
   apple:
     runs-on: macos-15
     timeout-minutes: 20
