@@ -21,9 +21,9 @@ jobs:
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865"'
       - name: Build Rust MLS for Android
         run: node scripts/build-native-mls.mjs android
-      - name: Compile proof and instrumentation APKs
+      - name: Compile proof, prototype and instrumentation APKs
         working-directory: native/android
-        run: ./gradlew :proof:assembleDebug :proof:assembleDebugAndroidTest --no-daemon --console=plain
+        run: ./gradlew :proof:assembleDebug :proof:assembleDebugAndroidTest :prototype:assembleDebug :prototype:assembleDebugAndroidTest --no-daemon --console=plain
   apple:
     runs-on: macos-15
     timeout-minutes: 20
@@ -60,6 +60,14 @@ jobs:
           xcodebuild build-for-testing
           -project native/apple/SquadtimeAppleProof.xcodeproj
           -scheme AdmissionExchangeProof
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath native/apple/build
+          CODE_SIGNING_ALLOWED=NO
+      - name: Compile interactive prototype and focused tests
+        run: >-
+          xcodebuild build-for-testing
+          -project native/apple/SquadtimeAppleProof.xcodeproj
+          -scheme SquadtimePrototype
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath native/apple/build
           CODE_SIGNING_ALLOWED=NO

@@ -24,6 +24,44 @@ targets:
       - name: Check native Rust MLS archive
         path: scripts/check-rust-bridge.sh
         basedOnDependencyAnalysis: false
+  SquadtimePrototype:
+    type: application
+    platform: iOS
+    sources: [Prototype]
+    dependencies:
+      - target: PairingProof
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.squadtime.prototype
+        INFOPLIST_KEY_CFBundleDisplayName: Squadtime DEV
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSCameraUsageDescription: Scan the other test device pairing code.
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: Apple Development
+    info:
+      path: build/Prototype-Info.plist
+      properties:
+        NSLocalNetworkUsageDescription: Connect to the explicitly selected local synthetic test relay.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+  PrototypeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [PrototypeUITests]
+    dependencies:
+      - target: SquadtimePrototype
+  PrototypeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [PrototypeTests]
+    dependencies:
+      - target: SquadtimePrototype
+    settings:
+      base:
+        TEST_HOST: '$(BUILT_PRODUCTS_DIR)/SquadtimePrototype.app/SquadtimePrototype'
+        BUNDLE_LOADER: '$(TEST_HOST)'
   ProofHost:
     type: application
     platform: iOS
@@ -84,6 +122,18 @@ targets:
         TEST_HOST: '$(BUILT_PRODUCTS_DIR)/ProofHost.app/ProofHost'
         BUNDLE_LOADER: '$(TEST_HOST)'
 schemes:
+  SquadtimePrototype:
+    build:
+      targets:
+        SquadtimePrototype: all
+    test:
+      targets: [PrototypeTests]
+  PrototypeUI:
+    build:
+      targets:
+        SquadtimePrototype: all
+    test:
+      targets: [PrototypeUITests]
   PairingProof:
     build:
       targets:

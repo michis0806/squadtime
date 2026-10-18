@@ -2,10 +2,11 @@
 
 Shared play sessions for friend groups, with safe defaults and optional parent management.
 
-**Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. The product's native iOS and Android apps are not yet implemented. Native proofs now cover device approval, encrypted MLS receive state, and a bounded initial admission between separate administrator and joining-client processes. The admission harness exchanges public envelopes through local file transport using pre-provisioned test pins. Both Apple-to-Android and Android-to-Apple exchanges passed with fresh app processes between phases. Cloudflare onboarding/transport, account and Guardian authority, recovery, and general membership remain open. See [native/README.md](native/README.md), [docs/independent-admission.md](docs/independent-admission.md), and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
+**Development status:** technical foundation and protocol experiments only. This is not a finished product and is not approved for real children’s or users’ data. Separate iOS and Android development apps now expose a local profile, mutual QR key confirmation, one direct test contact, and a fixed encrypted MLS probe through a disposable LAN relay. These are synthetic test apps; production onboarding and messaging are not implemented. Native proofs now cover device approval, encrypted MLS receive state, and a bounded initial admission between separate administrator and joining-client processes. The admission harness exchanges public envelopes through local file transport using pre-provisioned test pins. Both Apple-to-Android and Android-to-Apple exchanges passed with fresh app processes between phases. Cloudflare onboarding/transport, account and Guardian authority, recovery, and general membership remain open. See [native/README.md](native/README.md), [docs/independent-admission.md](docs/independent-admission.md), and [docs/device-pairing-proof.md](docs/device-pairing-proof.md).
 
 ## Components
 
+- `docs/prototype-testing.md`, `docs/prototype-contract.md`: build/run guide and shared contract for the interactive local device prototypes.
 - `backend/`: Cloudflare Worker with an authenticated relay for opaque encrypted events; D1 migration.
 - `api/openapi.yaml`: shared API contract for the DEV relay.
 - `crypto/mls-spike/`: runnable MLS protocol tests with freshly generated test identities.

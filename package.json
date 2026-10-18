@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "wrangler dev",
+    "prototype:relay": "node scripts/prototype-relay.mjs",
     "types": "node scripts/generate-types.mjs",
     "typecheck": "tsc --noEmit",
     "build:test": "esbuild backend/src/index.ts --bundle --format=esm --outfile=.local/worker.mjs",
