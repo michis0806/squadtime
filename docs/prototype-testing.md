@@ -129,3 +129,33 @@ a code is not a proximity test. Never use real identities, public relay
 endpoints, or production credentials for this prototype.
 
 The build checks compile both prototype apps and their focused test targets. Runtime and optical QR validation must be recorded separately; compilation alone does not establish a successful two-device exchange.
+
+
+## Try the foreground Bluetooth path
+
+This is an optional experimental way to transfer the pairing codes. The same
+local relay is still required for the MLS admission and encrypted test message;
+Bluetooth does not make this prototype independent of the Mac or LAN.
+
+1. Use synthetic profiles with the same approved relay. If both already have a
+   completed test contact, explicitly reset the prototype before starting another
+   one-contact test. Updating the app does not reset a contact.
+2. On the inviting device, choose the Bluetooth advertising role. On the other
+   device, choose the nearby-search role and select the intended test device.
+   Bluetooth permission is requested only when using this feature. Denial or
+   missing hardware support leaves QR available.
+3. Keep both apps open. Compare the complete six-digit code on the two intended
+   screens. Choose **Codes match** on both only when the codes match. A mismatch
+   requires cancelling the attempt; do not keep accepting new codes blindly.
+4. Review and explicitly confirm the received contact and relay on the joining
+   device. Its committed request is then transferred back through the same
+   authenticated Bluetooth channel. Review and confirm it on the inviting device.
+5. Check the existing encrypted-test and signed-receipt completion states. Repeat
+   with the Android and iOS roles reversed. Verify restart persistence separately.
+
+Cancelling, switching apps, disconnecting or timing out ends the volatile Bluetooth
+ceremony. Start a new attempt explicitly or use QR for the already committed native
+exchange. The app must not silently replace native keys or reset an admission.
+Discovery names, signal strength and matching codes do not prove legal identity,
+age, Guardian approval or physical presence. See the exact wire contract and
+review boundary in [bluetooth-prototype.md](bluetooth-prototype.md).

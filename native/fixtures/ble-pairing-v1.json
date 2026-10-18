@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "note": "Public synthetic reference only. Tests locally construct ephemeral scalar 1 (owner) and scalar 2 (joiner). Plaintexts test crypto framing, not PairCode validation.",
+  "sidHex": "000102030405060708090a0b0c0d0e0f",
+  "ownerNonceHex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+  "joinerNonceHex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+  "ownerPublicKeyHex": "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
+  "joinerPublicKeyHex": "047cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc4766997807775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1",
+  "ownerCommitmentHex": "da84dae701fc92a3b9c1260a27a1058b821cbf6ae572efd45b13a833d852f798",
+  "joinerCommitmentHex": "4593f54a5e6a4400df21d1386ac5492688a317fac0ffa9881b5673f09239472d",
+  "transcriptHashHex": "8fe6d1026622d8cb98440a4b8ad83b17ed1606e5061f9b1fbfccd515aca05632",
+  "sas": "272235",
+  "ownerConfirmMacHex": "8ce281d680d52a126444c03986736dea0fc62151e4ca25c3626a112f7c76be7c",
+  "joinerConfirmMacHex": "f9da5ba93e5d8063bc41704c4268ff43db6c88b4f5f988dc5a690b2063c9c5d7",
+  "ownerPlaintext": "Squadtime BLE owner public fixture",
+  "joinerPlaintext": "Squadtime BLE joiner public fixture",
+  "ownerFrameHex": "10000102030405060708090a0b0c0d0e0f0000000000000000000032023e37882a9c352f7da1b1e2f19cda448da07f5846d01e92e3b8878d197f3f49ce14f4ba84f997a9e98e65a33014aa0ebdf5",
+  "joinerFrameHex": "10000102030405060708090a0b0c0d0e0f01000000000000000000332c49bbcb539ff1a0d50c405b941779b0dfc29290b8d8c6edfedf9d897b2c4de2744dc6628ed73b5a0706eeb67a39bd4d18b747"
+}

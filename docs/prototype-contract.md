@@ -32,6 +32,14 @@ Poll only while the relevant screen is active, at about two-second intervals;
 stop on background/terminal state. A server restart loses its in-memory records;
 show a recoverable error rather than silently resetting device keys or vaults.
 
+## Optional Bluetooth transfer
+
+The foreground-only Bluetooth experiment transports the same exact public PairCode
+payloads after bilateral code comparison over an authenticated channel. It keeps
+the existing explicit peer/relay review, native admission and relay behavior. See
+[bluetooth-prototype.md](bluetooth-prototype.md) for the separate wire contract,
+limits and validation requirements. Merely discovering a BLE device grants no trust.
+
 ## QR payload
 
 ` squadtime-prototype-v1:` without the leading space, followed by canonical

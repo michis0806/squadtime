@@ -45,10 +45,19 @@ class PrototypeController(private val context: Context) {
         DurableAdmission.createOwner(context,id).use { it.ownerStart(System.currentTimeMillis() / 1000) }
         return refresh()
     }
-    fun acceptCode(qr: JSONObject, manual: Boolean): JSONObject {
+    fun acceptCode(qr: JSONObject, manual: Boolean, verificationMethod: String = if (manual) "manual" else "qr"): JSONObject {
+        require(verificationMethod in setOf("manual","qr","bluetooth"))
         val p = profile ?: error("Create your test profile first")
         val relay = qr.getString("relay")
         if (p.optString("relay").isNotBlank()) require(p.getString("relay") == relay)
+        if (verificationMethod == "bluetooth" && p.has("id") && p.getString("role") == "joiner") {
+            vault().use { require(it.resume().kind == "request") }
+            require(qr.getString("type") == "invite" && p.getString("session") == qr.getString("session") &&
+                p.getString("peerKey") == qr.getString("key") && p.getString("invitationHash") == qr.getString("hash"))
+            p.put("verificationMethod","bluetooth").put("manual",false); save()
+            vault().use { PrototypeProtocol.exchange(relay,p.getString("session"),"request",it.resume().outbox) }
+            return view()
+        }
         if (!p.has("id")) {
             require(qr.getString("type") == "invite")
             val invitation = PrototypeProtocol.exchange(relay,qr.getString("session"),"invitation") ?: error("Invitation missing; ask the owner to retry")
@@ -59,6 +68,7 @@ class PrototypeController(private val context: Context) {
             p.put("id",id).put("role","joiner").put("session",qr.getString("session")).put("relay",relay)
                 .put("peerKey",qr.getString("key")).put("peerLabel",qr.getString("label")).put("manual",manual)
                 .put("invitation",invitation).put("invitationHash",qr.getString("hash"))
+                .put("verificationMethod",verificationMethod)
             save()
             DurableAdmission.createJoiner(context,id,qr.getString("key")).use { it.joinerStart(invitation,System.currentTimeMillis() / 1000) }
         } else {
@@ -68,8 +78,13 @@ class PrototypeController(private val context: Context) {
             val native = JSONObject(PrototypeProtocol.decode(request).toString(Charsets.UTF_8))
             require(native.getString("devicePublicKey") == qr.getString("key") && native.getLong("expiresAt") == qr.getLong("expiresAt"))
             p.put("peerKey",qr.getString("key")).put("peerLabel",qr.getString("label")).put("manual",manual).put("requestHash",qr.getString("hash"))
+                .put("verificationMethod",verificationMethod)
             save()
             vault().use { it.ownerAdmit(request,qr.getString("key"),true,System.currentTimeMillis() / 1000) }
+        }
+        if (verificationMethod == "bluetooth" && p.getString("role") == "joiner") {
+            vault().use { PrototypeProtocol.exchange(relay,p.getString("session"),"request",it.resume().outbox) }
+            return view()
         }
         return refresh()
     }
@@ -123,6 +138,7 @@ class PrototypeController(private val context: Context) {
         vault().use { admission ->
             val public = initialOutbox(admission)
             result.put("screen",public.kind).put("peerLabel",p.optString("peerLabel")).put("manual",p.optBoolean("manual"))
+                .put("verificationMethod",p.optString("verificationMethod",if (p.optBoolean("manual")) "manual" else "qr"))
                 .put("confirmed",p.optBoolean("confirmed")).put("fingerprint",PrototypeProtocol.digest(PrototypeProtocol.decode(public.nativePublicKey)))
             if (p.has("peerKey")) result.put("peerFingerprint",PrototypeProtocol.digest(PrototypeProtocol.decode(p.getString("peerKey"))))
             if (public.kind in setOf("invitation","request")) {

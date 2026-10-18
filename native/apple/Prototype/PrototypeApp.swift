@@ -40,20 +40,21 @@ struct PrototypeView: View {
                         if profile.manual { Text("Manual transfer · no proximity verification").font(.footnote).foregroundStyle(.orange) }
                         if model.phase == "ready" {
                             Button("Create pairing code") { act { await model.start() } }
-                            Button("Scan pairing code") { scanner = true }
+                            Button("Scan pairing code") { model.bluetooth.cancel(); scanner = true }
                         } else if !model.phase.isEmpty {
                             if !model.code.isEmpty { QRCodeView(code: model.code); ShareLink("Share public pairing code", item: model.code) }
-                            Button("Scan other device code") { scanner = true }
+                            Button("Scan other device code") { model.bluetooth.cancel(); scanner = true }
                             Button("Check relay / retry stored outbox") { act { await model.refresh() } }
                         }
                         if !model.peerFingerprint.isEmpty {
                             Text("Other device fingerprint").font(.caption)
                             Text(model.peerFingerprint).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
-                            Text("Compare this fingerprint with the intended other device using a separate trusted channel. The code itself is not proof of identity.").font(.footnote)
-                            Toggle("I compared the intended device key", isOn: $confirmed)
+                            Text(model.bluetoothReview ? "The complete Bluetooth code was confirmed on both devices. Review this intended contact and relay. The full native fingerprint remains available." : "Compare this fingerprint with the intended other device using a separate trusted channel. The code itself is not proof of identity.").font(.footnote)
+                            Toggle(model.bluetoothReview ? "I approve this Bluetooth-verified test contact" : "I compared the intended device key", isOn: $confirmed)
                             Button("Confirm this direct test contact") { act { await model.confirm(); confirmed = false } }.disabled(!confirmed)
                         }
                     }
+                    BLEPairingSection(coordinator: model.bluetooth)
                     Section("Manual fallback") {
                         Text("Pasted or forwarded codes are manual transfer, not proximity verification.").font(.footnote)
                         TextField("Public pairing code", text: $input, axis: .vertical).textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -74,6 +75,11 @@ struct PrototypeView: View {
             .navigationTitle("Squadtime DEV")
             .disabled(model.busy)
             .task { await model.load() }
+            .onChange(of: model.bluetoothReview) { _, _ in confirmed = false }
+            .onChange(of: model.peerFingerprint) { _, _ in confirmed = false }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background { model.bluetooth.cancel() }
+            }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 while !Task.isCancelled {

@@ -13,6 +13,7 @@ struct PrototypeProfile: Codable, Sendable {
     var bootstrap: String?
     var peerKey: Data?
     var manual = false
+    var verificationMethod: String?
     var session: String?
     var invitationHash: String?
     var requestHash: String?

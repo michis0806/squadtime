@@ -43,6 +43,7 @@ targets:
       path: build/Prototype-Info.plist
       properties:
         SquadtimePrototypeRelayOrigin: $(SQUADTIME_PROTOTYPE_RELAY_ORIGIN)
+        NSBluetoothAlwaysUsageDescription: Find and exchange test pairing codes with the other device after you choose Bluetooth pairing.
         NSLocalNetworkUsageDescription: Connect to the explicitly selected local synthetic test relay.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -57,7 +58,10 @@ targets:
   PrototypeTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [PrototypeTests]
+    sources:
+      - path: PrototypeTests
+      - path: ../fixtures/ble-pairing-v1.json
+        buildPhase: resources
     dependencies:
       - target: SquadtimePrototype
     settings:

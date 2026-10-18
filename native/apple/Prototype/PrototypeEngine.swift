@@ -8,6 +8,7 @@ struct PrototypeSnapshot: Sendable {
     var phase = ""
     var code = ""
     var fingerprint = ""
+    var bluetoothReview = false
     var status = "Choose a local test relay, then show or scan a code."
 }
 
@@ -17,9 +18,12 @@ actor PrototypeEngine {
     let relay = PrototypeRelay()
     var profile: PrototypeProfile?
     var admission: DurableAdmission?
+    private var bluetoothGeneration: UUID?
+    private var pendingBluetoothCode: String?
     let signing = try! DeviceKeyStore(alias: PrototypeStorage.keyAlias)
     func load() async throws -> PrototypeSnapshot {
         if let admission { await admission.close(); self.admission = nil }
+        pendingBluetoothCode = nil; bluetoothGeneration = nil
         profile = try await storage.load()
         if profile != nil { _ = try signing.publicKeyHex() }
         if let id = profile?.admissionID {
@@ -65,14 +69,39 @@ actor PrototypeEngine {
         else { guard p.role == "owner", p.session == code.session, try await admission?.outbox().kind == "invitation" else { throw PrototypeFailure.invalid } }
         p.pendingCode = text; p.manual = manual; profile = p; try await persist(); return try await snapshot()
     }
-    func confirm() async throws -> PrototypeSnapshot {
-        guard var p = profile, let text = p.pendingCode else { throw PrototypeFailure.invalid }
+    func beginBluetooth(_ generation: UUID) { bluetoothGeneration = generation; pendingBluetoothCode = nil }
+    func cancelBluetooth(_ generation: UUID) async throws -> PrototypeSnapshot {
+        if bluetoothGeneration == generation { pendingBluetoothCode = nil; bluetoothGeneration = nil }
+        return try await snapshot()
+    }
+    func receiveBluetooth(_ text: String, generation: UUID) async throws -> PrototypeSnapshot {
+        guard bluetoothGeneration == generation, let p = profile else { throw PrototypeFailure.invalid }
+        let code = try PairCode.parse(text)
+        guard p.bootstrap == code.relay else { throw PrototypeFailure.invalid }
+        if code.type == "invite", p.role == "joiner", let admission, try await admission.outbox().kind == "request" {
+            guard p.session == code.session, p.invitationHash == code.hash, p.peerKey == code.key,
+                  bluetoothGeneration == generation else { throw PrototypeFailure.invalid }
+            return try await snapshot()
+        }
+        if code.type == "invite" { guard p.admissionID == nil else { throw PrototypeFailure.invalid } }
+        else { guard p.role == "owner", p.session == code.session, try await admission?.outbox().kind == "invitation" else { throw PrototypeFailure.invalid } }
+        guard bluetoothGeneration == generation else { throw PrototypeFailure.invalid }
+        pendingBluetoothCode = text
+        return try await snapshot()
+    }
+    func confirm(bluetoothToken: UUID? = nil) async throws -> PrototypeSnapshot {
+        let isBluetooth = pendingBluetoothCode != nil
+        if isBluetooth { guard let bluetoothToken, bluetoothGeneration == bluetoothToken else { throw PrototypeFailure.invalid } }
+        guard var p = profile, let text = pendingBluetoothCode ?? p.pendingCode else { throw PrototypeFailure.invalid }
         let code = try PairCode.parse(text)
         guard code.relay == p.bootstrap, let bytes = try await relay.exchange(relay: code.relay, id: code.session, kind: code.type == "invite" ? "invitation" : "request"), digest(bytes) == code.hash else { throw PrototypeFailure.invalid }
         let object = try JSONSerialization.jsonObject(with: bytes) as? [String: Any]
         guard let key = object?[code.type == "invite" ? "adminPublicKey" : "devicePublicKey"] as? String,
               key == code.key.base64EncodedString(), (object?["expiresAt"] as? NSNumber)?.int64Value == code.expiresAt else { throw PrototypeFailure.invalid }
+        if isBluetooth { guard bluetoothGeneration == bluetoothToken else { throw PrototypeFailure.invalid } }
         p.peerKey = code.key; p.expiresAt = code.expiresAt
+        if isBluetooth { p.verificationMethod = "bluetooth"; p.manual = false }
+        else { p.verificationMethod = p.manual ? "manual" : "qr" }
         if code.type == "invite" {
             p.admissionID = UUID(); p.role = "joiner"; p.session = code.session; p.invitationHash = code.hash
             profile = p; try await persist()
@@ -83,7 +112,7 @@ actor PrototypeEngine {
             guard let admission else { throw PrototypeFailure.unavailable }
             _ = try await admission.ownerAdmit(request: bytes, trustedDevicePublicKey: code.key, nativeKey: signing, now: now(), userConfirmed: true)
         }
-        profile?.pendingCode = nil; try await persist(); return try await refresh()
+        pendingBluetoothCode = nil; profile?.pendingCode = nil; try await persist(); return try await refresh()
     }
     func refresh() async throws -> PrototypeSnapshot {
         guard var p = profile, let admission, let server = p.bootstrap, let id = p.session else { return try await snapshot() }
@@ -131,7 +160,8 @@ actor PrototypeEngine {
     func snapshot() async throws -> PrototypeSnapshot {
         guard let p = profile else { return PrototypeSnapshot(profile: nil) }
         var result = PrototypeSnapshot(profile: p); result.phase = p.bootstrap == nil ? "" : "ready"
-        if let text = p.pendingCode {
+        if let text = pendingBluetoothCode ?? p.pendingCode {
+            result.bluetoothReview = pendingBluetoothCode != nil
             let code = try PairCode.parse(text); result.fingerprint = digest(code.key)
             result.status = "Confirm \(code.label)'s test key and selected relay: \(code.relay)"
         }
@@ -140,7 +170,7 @@ actor PrototypeEngine {
             if ["invitation","request"].contains(out.kind), let expiry = p.expiresAt {
                 result.code = try PairCode(v: 1, type: out.kind == "invitation" ? "invite" : "request", relay: server, session: session, key: out.nativePublicKey, hash: digest(out.outbox), expiresAt: expiry, label: p.nickname).text()
             }
-            if p.pendingCode == nil {
+            if p.pendingCode == nil && pendingBluetoothCode == nil {
                 switch out.kind {
                 case "invitation": result.status = "Show your code. Then scan the other device's request."
                 case "request": result.status = "Show your request code to the first device, then check the relay."
@@ -161,6 +191,7 @@ actor PrototypeEngine {
     }
     func reset() async throws -> PrototypeSnapshot {
         if let admission { await admission.close() }; admission = nil
+        pendingBluetoothCode = nil; bluetoothGeneration = nil
         try await storage.reset(); profile = nil; return PrototypeSnapshot(profile: nil)
     }
     private func persist() async throws { guard let profile else { throw PrototypeFailure.invalid }; try await storage.save(profile) }
@@ -173,6 +204,9 @@ final class PrototypeModel {
     var phase = ""
     var code = ""
     var peerFingerprint = ""
+    var bluetoothReview = false
+    let bluetooth = BLEPairingCoordinator()
+    init() { bluetooth.model = self }
     var status = ""
     var busy = false
     var blocked = false
@@ -187,14 +221,33 @@ final class PrototypeModel {
             if !opening, let result = try? await engine.load() { apply(result) }
         }
     }
-    private func apply(_ s: PrototypeSnapshot) { profile = s.profile; phase = s.phase; code = s.code; peerFingerprint = s.fingerprint; status = s.status }
+    private func apply(_ s: PrototypeSnapshot) { profile = s.profile; phase = s.phase; code = s.code; peerFingerprint = s.fingerprint; status = s.status; bluetoothReview = s.bluetoothReview }
     func load() async { await run({ try await engine.load() }, opening: true) }
     func create(nickname: String, avatar: String) async { await run { try await engine.create(nickname: nickname, avatar: avatar) } }
     func configure(_ input: String) async { await run { try await engine.configure(input) } }
     func start() async { await run { try await engine.start() } }
-    func receive(_ text: String, manual: Bool) async { await run { try await engine.receive(text, manual: manual) } }
-    func confirm() async { await run { try await engine.confirm() } }
+    func receive(_ text: String, manual: Bool) async {
+        let previous = bluetooth.generation; bluetooth.cancel()
+        _ = try? await engine.cancelBluetooth(previous)
+        await run { try await engine.receive(text, manual: manual) }
+    }
+    func beginBluetooth(_ generation: UUID) async { await engine.beginBluetooth(generation) }
+    func clearBluetooth(_ generation: UUID) async {
+        if let snapshot = try? await engine.cancelBluetooth(generation), !bluetooth.transport.active { apply(snapshot) }
+    }
+    func receiveBluetooth(_ text: String, generation: UUID) async throws {
+        let snapshot = try await engine.receiveBluetooth(text, generation: generation)
+        guard bluetooth.generation == generation, bluetooth.verified else { throw PrototypeFailure.invalid }
+        apply(snapshot)
+    }
+    func confirm() async {
+        let isBluetooth = bluetoothReview
+        let token = isBluetooth ? bluetooth.generation : nil
+        if isBluetooth && !bluetooth.verified { error = "Bluetooth verification ended. Start a new attempt or use QR."; return }
+        await run { try await engine.confirm(bluetoothToken: token) }
+        if isBluetooth, error == nil { await bluetooth.nativeConfirmationCompleted() }
+    }
     func refresh() async { await run { try await engine.refresh() } }
     func acknowledge() async { await run { try await engine.acknowledge() } }
-    func reset() async { await run { try await engine.reset() } }
+    func reset() async { bluetooth.cancel(); await run { try await engine.reset() } }
 }

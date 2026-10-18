@@ -34,6 +34,12 @@ class MainActivity : Activity() {
     private var formErrors = ProfileFormErrors()
     private var nicknameField: EditText? = null
     private var relayField: EditText? = null
+    private var nearby: NearbyPairing? = null
+    private var nearbyState: NearbyPairing.State? = null
+    private var pendingNearbyOwner: Boolean? = null
+    private var grantedNearbyOwner: Boolean? = null
+    private var nearbyPermissionRequestedAt = 0L
+    private var nearbyReview: AlertDialog? = null
     private val ink = Color.rgb(27, 38, 65)
     private val purple = Color.rgb(100, 77, 218)
     private val avatars = arrayOf("🦊 Fox", "🐼 Panda", "🐙 Octopus", "🐯 Tiger")
@@ -50,9 +56,18 @@ class MainActivity : Activity() {
         render()
         runWork { controller.load() }
     }
-    override fun onResume() { super.onResume(); foreground = true; handler.removeCallbacks(poll); handler.postDelayed(poll,2200) }
-    override fun onPause() { foreground = false; handler.removeCallbacks(poll); super.onPause() }
-    override fun onDestroy() { destroyed = true; handler.removeCallbacksAndMessages(null); worker.shutdown(); super.onDestroy() }
+    override fun onResume() {
+        super.onResume(); foreground = true; handler.removeCallbacks(poll); handler.postDelayed(poll,2200)
+        grantedNearbyOwner?.let { owner ->
+            grantedNearbyOwner = null
+            handler.post {
+                if (!destroyed && foreground && android.os.SystemClock.elapsedRealtime() - nearbyPermissionRequestedAt <= 60_000) startNearby(owner)
+                else if (!destroyed) status.text = "Nearby devices permission is available. Tap Advertise or Find nearby again when ready."
+            }
+        }
+    }
+    override fun onPause() { foreground = false; handler.removeCallbacks(poll); cancelNearby("Nearby pairing stopped when the app left the foreground. Saved native outboxes remain available through QR."); super.onPause() }
+    override fun onDestroy() { destroyed = true; cancelNearby(); handler.removeCallbacksAndMessages(null); worker.shutdown(); super.onDestroy() }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     private fun text(value: String, size: Float = 16f, bold: Boolean = false): TextView = TextView(this).apply {
         text = value; textSize = size; setTextColor(ink); setPadding(0,dp(5),0,dp(7)); if (bold) setTypeface(null,Typeface.BOLD)
@@ -89,6 +104,17 @@ class MainActivity : Activity() {
         note.addView(text("LOCAL DEVICE PROTOTYPE",12f,true))
         note.addView(text("Synthetic test profiles only. One direct contact and one encrypted test. No production onboarding, introductions, recovery or general chat.",14f))
         val screen = model.optString("screen")
+        nearbyState?.let { state ->
+            val nearbyCard = card()
+            nearbyCard.addView(text("Nearby Bluetooth pairing",23f,true))
+            nearbyCard.addView(text(state.message,15f))
+            state.devices.forEachIndexed { index, label -> nearbyCard.button(label) { nearby?.choose(index) } }
+            state.sas?.let { code ->
+                nearbyCard.addView(text(code.chunked(3).joinToString(" "),36f,true))
+                if (!state.localApproved) nearbyCard.button("Codes match") { nearby?.codesMatch() }
+            }
+            nearbyCard.button("Cancel nearby pairing · use QR") { cancelNearby() }
+        }
         nicknameField = null; relayField = null
         if (screen == "profile" || screen == "home") {
             val draft = profileForm.display(
@@ -144,6 +170,8 @@ class MainActivity : Activity() {
                 connect.addView(text("Meet your first contact",23f,true))
                 connect.addView(text("Confirm the intended test device on both screens. A QR can be forwarded and does not prove presence, age, identity or Guardian approval.",14f))
                 connect.button("Save profile and show my code") { submitProfile(showCode = true) }
+                connect.button("Save and advertise over Bluetooth") { submitProfile(afterSaved = { prepareNearbyOwner() }) }
+                connect.button("Save profile and find nearby") { submitProfile(afterSaved = { startNearby(false) }) }
                 connect.button("Scan a code") { scan() }
                 connect.button("Paste code · manual transfer test") { paste() }
             }
@@ -184,8 +212,12 @@ class MainActivity : Activity() {
                     contact.addView(text("Your contact scans this invitation and confirms your fingerprint. Then scan the request shown on their device.",15f))
                     contact.button("Scan contact’s request") { scan() }
                     contact.button("Paste request · manual transfer test") { paste() }
+                    if (nearby == null) contact.button("Advertise for nearby pairing") { startNearby(true) }
                 }
-                "request" -> contact.addView(text("Ask your contact to scan this request and confirm your device. Keep this screen open while waiting for the encrypted test.",15f))
+                "request" -> {
+                    contact.addView(text("Ask your contact to scan this request and confirm your device. Keep this screen open while waiting for the encrypted test.",15f))
+                    if (nearby == null) contact.button("Find owner again over Bluetooth") { startNearby(false) }
+                }
                 "welcome" -> contact.addView(text(if (model.optBoolean("confirmed")) "The other device signed a receipt after joining and receiving the fixed encrypted test." else "Your committed Welcome is ready. Waiting for the other device to receive the fixed encrypted test and return its signed receipt.",15f))
                 "joined" -> {
                     contact.addView(text("The real MLS Welcome and fixed synthetic probe were authenticated and committed locally. This is an interoperability test, not a general messaging feature.",15f))
@@ -197,6 +229,7 @@ class MainActivity : Activity() {
             if (model.has("peerFingerprint")) contact.addView(text("Confirmed contact key\n${groupFingerprint(model.getString("peerFingerprint"))}",13f))
             contact.addView(text("Your device key\n${groupFingerprint(model.optString("fingerprint"))}",13f))
             if (model.optBoolean("manual")) contact.addView(text("Manual code-transfer test. This does not demonstrate proximity.",14f,true))
+            if (model.optString("verificationMethod") == "bluetooth") contact.addView(text("Native key pin received through the mutually confirmed Bluetooth code ceremony. This does not prove proximity or real identity.",14f))
             contact.button("Retry exact saved exchange") { runWork { controller.refresh() } }
         } else {
             card().addView(text(if (screen == "locked") "Local data cannot be opened. A missing or replaced key will not be regenerated. Reset is required to create a new synthetic profile." else "Opening encrypted local storage…",17f))
@@ -205,6 +238,7 @@ class MainActivity : Activity() {
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         column.addView(status)
         if (screen != "profile" && screen != "loading") column.button("Reset this prototype") {
+            cancelNearby()
             AlertDialog.Builder(this).setTitle("Delete this prototype’s local data?")
                 .setMessage("This deletes the test profile, device keys, contact and encrypted inbox belonging to Squadtime DEV on this device. Recovery is not supported.")
                 .setNegativeButton("Cancel",null).setPositiveButton("Delete local prototype data") { _, _ -> runWork(onSuccess = { profileForm.committed(); formErrors = ProfileFormErrors(); render() }) { controller.reset() } }.show()
@@ -212,9 +246,9 @@ class MainActivity : Activity() {
         setContentView(scroll)
     }
     private fun groupFingerprint(value: String) = value.chunked(4).joinToString(" ")
-    private fun submitProfile(showCode: Boolean = false) {
+    private fun submitProfile(showCode: Boolean = false, afterSaved: (() -> Unit)? = null) {
         if (busy) return
-        formErrors = profileForm.validate(requireRelay = showCode)
+        formErrors = profileForm.validate(requireRelay = showCode || afterSaved != null)
         nicknameField?.error = formErrors.nickname
         relayField?.error = formErrors.relay
         if (formErrors.hasErrors) {
@@ -228,6 +262,7 @@ class MainActivity : Activity() {
             onSuccess = {
                 profileForm.committed(); formErrors = ProfileFormErrors(); render()
                 if (showCode) runWork { controller.showCode() }
+                else afterSaved?.invoke()
             }
         ) { controller.saveProfile(draft.nickname,draft.avatar,draft.relay) }
     }
@@ -246,14 +281,17 @@ class MainActivity : Activity() {
             }
             handler.post {
                 if (!destroyed) {
-                    busy = false; model = result; render()
+                    busy = false; model = result
+                    if (model.optString("screen") in setOf("welcome","joined")) cancelNearby("Native admission is committed. The encrypted test continues through the local relay.")
+                    render()
                     if (failure) status.text = failureMessage else onSuccess?.invoke()
                 }
             }
         }
     }
-    private fun scan() { if (!busy) startActivityForResult(Intent(this,ScannerActivity::class.java),42) }
+    private fun scan() { if (!busy) { cancelNearby(); startActivityForResult(Intent(this,ScannerActivity::class.java),42) } }
     private fun paste() {
+        cancelNearby()
         val field = edit("Paste a Squadtime prototype code").apply { setSingleLine(false); filters = arrayOf(InputFilter.LengthFilter(2048)) }
         AlertDialog.Builder(this).setTitle("Manual code-transfer test").setMessage("This mode does not demonstrate proximity. Compare the full device fingerprint through a trusted channel.")
             .setView(field).setNegativeButton("Cancel",null).setPositiveButton("Review code") { _, _ -> reviewCode(field.text.toString().trim(),true) }.show()
@@ -264,17 +302,73 @@ class MainActivity : Activity() {
         if (requestCode == 42 && resultCode == RESULT_OK) reviewCode(data?.getStringExtra("code") ?: "",false)
         else if (requestCode == 42) status.text = "Scan cancelled or camera permission denied. Retry and allow camera access in Android Settings, or use the labelled manual transfer test."
     }
-    private fun reviewCode(value: String, manual: Boolean) {
+    private fun reviewCode(value: String, manual: Boolean, viaBluetooth: Boolean = false) {
+        val expectedNearby = if (viaBluetooth) nearby ?: return else null
         val qr = try {
             PrototypeProtocol.parseQr(value).also {
                 if (model.optString("relay").isNotBlank()) require(it.getString("relay") == model.getString("relay"))
             }
-        } catch (_: Exception) { status.text = "Invalid, expired or mismatched test code. No network request was made."; return }
+        } catch (_: Exception) {
+            if (viaBluetooth) cancelNearby("Bluetooth provided an invalid, expired or mismatched test code. Use QR or start a new attempt.")
+            status.text = "Invalid, expired or mismatched test code. No network request was made."; return
+        }
         val fingerprint = groupFingerprint(PrototypeProtocol.digest(PrototypeProtocol.decode(qr.getString("key"))))
-        AlertDialog.Builder(this).setTitle("Confirm the intended test device")
-            .setMessage("Nickname hint: ${qr.getString("label")}\n\nCompare this full fingerprint on the other device:\n$fingerprint\n\nTest server: ${qr.getString("relay")}\n\n${if (manual) "Manual transfer does not demonstrate proximity." else "A QR can be forwarded; scanning does not prove presence."}\nThis does not verify identity, age or Guardian approval.")
-            .setNegativeButton("Cancel",null).setPositiveButton("Keys match · allow test server") { _, _ ->
-                runWork { controller.acceptCode(PrototypeProtocol.parseQr(value),manual) }
-            }.show()
+        val description = if (viaBluetooth) "The matching Bluetooth code authenticated this native key pin. You must still confirm the intended contact and test server. Full native fingerprint:\n$fingerprint" else "Compare this full fingerprint on the other device:\n$fingerprint"
+        val dialog = AlertDialog.Builder(this).setTitle("Confirm the intended test device")
+            .setMessage("Nickname hint: ${qr.getString("label")}\n\n$description\n\nTest server: ${qr.getString("relay")}\n\n${if (manual) "Manual transfer does not demonstrate proximity." else if (viaBluetooth) "Bluetooth does not prove physical presence." else "A QR can be forwarded; scanning does not prove presence."}\nThis does not verify identity, age or Guardian approval.")
+            .setNegativeButton("Cancel") { _, _ -> if (viaBluetooth) cancelNearby() }
+            .setPositiveButton(if (viaBluetooth) "Confirm contact · allow test server" else "Keys match · allow test server") { _, _ ->
+                if (viaBluetooth && (!foreground || nearby !== expectedNearby)) return@setPositiveButton
+                nearbyReview = null
+                runWork(onSuccess = {
+                    if (viaBluetooth && nearby === expectedNearby) {
+                        if (model.optString("screen") == "request") expectedNearby?.sendPairCode(model.getString("qr"))
+                        else expectedNearby?.acceptedRequest()
+                    }
+                }) { controller.acceptCode(PrototypeProtocol.parseQr(value),manual,if (viaBluetooth) "bluetooth" else if (manual) "manual" else "qr") }
+            }.create()
+        if (viaBluetooth) {
+            nearbyReview = dialog
+            dialog.setOnCancelListener { cancelNearby() }
+        }
+        dialog.show()
+    }
+    private fun prepareNearbyOwner() {
+        runWork(onSuccess = { if (model.optString("screen") == "invitation") startNearby(true) }) { controller.showCode() }
+    }
+    private fun startNearby(owner: Boolean) {
+        if (busy || !foreground || nearby != null) return
+        if (model.optString("relay").isBlank()) { status.text = "Save a local test relay before starting nearby pairing."; return }
+        val permissions = arrayOf(android.Manifest.permission.BLUETOOTH_SCAN,android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_ADVERTISE)
+        if (permissions.any { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+            pendingNearbyOwner = owner; nearbyPermissionRequestedAt = android.os.SystemClock.elapsedRealtime(); requestPermissions(permissions,43); return
+        }
+        val invitation = if (owner) model.optString("qr").takeIf { model.optString("screen") == "invitation" } else null
+        if (owner && invitation == null) { status.text = "Create your invitation first, then advertise or use QR."; return }
+        val created = NearbyPairing(this,owner,invitation,object : NearbyPairing.Listener {
+            override fun changed(state: NearbyPairing.State) { if (!destroyed && foreground) { nearbyState = state; render() } }
+            override fun pairCode(code: String) { if (!destroyed && foreground) reviewCode(code,false,true) }
+            override fun stopped(reason: String) {
+                nearbyReview?.dismiss(); nearbyReview = null; nearby = null; nearbyState = null
+                if (!destroyed) { render(); status.text = reason }
+            }
+        })
+        nearby = created; nearbyState = NearbyPairing.State("Starting foreground Bluetooth pairing…"); render(); created.start()
+    }
+    private fun cancelNearby(reason: String = "Nearby pairing cancelled. QR remains available.") {
+        nearbyReview?.dismiss(); nearbyReview = null
+        nearby?.stop(reason); nearby = null; nearbyState = null
+    }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode,permissions,grantResults)
+        if (requestCode == 43) {
+            val owner = pendingNearbyOwner; pendingNearbyOwner = null
+            if (owner != null && grantResults.isNotEmpty() && grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+                if (android.os.SystemClock.elapsedRealtime() - nearbyPermissionRequestedAt > 60_000) status.text = "Permission granted. Tap Advertise or Find nearby again when ready."
+                else if (foreground) startNearby(owner)
+                else grantedNearbyOwner = owner
+            }
+            else status.text = "Nearby devices permission was denied. QR and the labelled manual transfer remain available. You can allow Nearby devices later in Android Settings."
+        }
     }
 }
