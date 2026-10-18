@@ -43,6 +43,12 @@ commit them. Build and install the app from Xcode. The generated app declares
 camera permission and local-network access, including
 `NSAllowsLocalNetworking`, for the explicitly approved local relay.
 
+To prefill the editable relay field in a local build, pass
+`SQUADTIME_PROTOTYPE_RELAY_ORIGIN=http://192.168.1.2:8789` to `xcodebuild`,
+or set it in an ignored local signing/build configuration. The default is empty.
+Keep the actual LAN address out of committed project settings. The user still
+approves the displayed origin before the app connects.
+
 ### Android
 
 Use an ARM64 device with Android 12 (API 31) or later. The current native-library build produces only `arm64-v8a`; an x86 emulator requires an additional native-library build.
@@ -56,7 +62,11 @@ cd native/android
 
 The address above is an example only. Substitute the current address of the Mac
 running the relay. The generated network-security resource permits cleartext
-HTTP only for that exact host. Install the resulting debug APK using Android
+HTTP only for that exact host. The same host also prefills the editable relay
+field, using port `8789`; override the port with `-PprototypeRelayPort=8790`
+if the relay uses another port. Without an explicit host, the default field is
+empty. Saved addresses and unsaved edits take precedence over the build default.
+Install the resulting debug APK using Android
 Studio or `adb install prototype/build/outputs/apk/debug/prototype-debug.apk`.
 
 ## Start the disposable relay

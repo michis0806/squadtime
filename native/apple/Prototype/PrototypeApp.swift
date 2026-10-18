@@ -13,7 +13,7 @@ struct PrototypeView: View {
     @State private var nickname = ""
     @State private var avatar = "fox"
     @State private var input = ""
-    @State private var relayOrigin = ""
+    @State private var relayOrigin = Self.defaultRelayOrigin
     @State private var scanner = false
     @State private var resetting = false
     @State private var confirmed = false
@@ -31,7 +31,7 @@ struct PrototypeView: View {
                         Section("Test relay configuration") {
                             Text("Paste the local test relay HTTP origin supplied for this device. It stays encrypted on this device. Approving permits network access to this local test server.").font(.footnote)
                             TextField("http://192.168.1.2:8789", text: $relayOrigin).textInputAutocapitalization(.never).autocorrectionDisabled()
-                            Button("Approve test relay origin") { act { await model.configure(relayOrigin); relayOrigin = "" } }.disabled(relayOrigin.isEmpty)
+                            Button("Approve test relay origin") { act { await model.configure(relayOrigin) } }.disabled(relayOrigin.isEmpty)
                         }
                     }
                     Section("One direct test contact") {
@@ -86,9 +86,13 @@ struct PrototypeView: View {
                 NavigationStack { QRScanner { code in scanner = false; act { confirmed = false; await model.receive(code, manual: false) } }.navigationTitle("Scan public pairing code").toolbar { Button("Cancel") { scanner = false } } }
             }
             .confirmationDialog("Delete only this prototype's local profile, keys and contact state? This cannot be recovered.", isPresented: $resetting, titleVisibility: .visible) {
-                Button("Delete prototype data", role: .destructive) { act { await model.reset() } }
+                Button("Delete prototype data", role: .destructive) { act { await model.reset(); if model.profile == nil { relayOrigin = Self.defaultRelayOrigin } } }
             }
         }
+    }
+    private static var defaultRelayOrigin: String {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "SquadtimePrototypeRelayOrigin") as? String else { return "" }
+        return (try? origin(value)) ?? ""
     }
     private func act(_ action: @escaping @MainActor () async -> Void) { Task { await action() } }
 }

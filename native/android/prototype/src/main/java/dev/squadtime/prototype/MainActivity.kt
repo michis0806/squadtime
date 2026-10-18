@@ -91,7 +91,10 @@ class MainActivity : Activity() {
         val screen = model.optString("screen")
         nicknameField = null; relayField = null
         if (screen == "profile" || screen == "home") {
-            val draft = profileForm.display(ProfileDraft(model.optString("nickname"),model.optString("relay"),model.optInt("avatar")))
+            val draft = profileForm.display(
+                ProfileDraft(model.optString("nickname"),model.optString("relay"),model.optInt("avatar")),
+                getString(R.string.prototype_default_relay)
+            )
             val profileCard = card()
             profileCard.addView(text("Your test profile",23f,true))
             val nickname = edit("Test nickname",draft.nickname)

@@ -33,6 +33,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.squadtime.prototype
+        SQUADTIME_PROTOTYPE_RELAY_ORIGIN: ''
         INFOPLIST_KEY_CFBundleDisplayName: Squadtime DEV
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSCameraUsageDescription: Scan the other test device pairing code.
@@ -41,6 +42,7 @@ targets:
     info:
       path: build/Prototype-Info.plist
       properties:
+        SquadtimePrototypeRelayOrigin: $(SQUADTIME_PROTOTYPE_RELAY_ORIGIN)
         NSLocalNetworkUsageDescription: Connect to the explicitly selected local synthetic test relay.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

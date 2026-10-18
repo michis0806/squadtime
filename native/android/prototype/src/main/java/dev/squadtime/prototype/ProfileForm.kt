@@ -9,7 +9,9 @@ data class ProfileFormErrors(val nickname: String? = null, val relay: String? = 
 
 class ProfileForm {
     private var draft: ProfileDraft? = null
-    fun display(saved: ProfileDraft): ProfileDraft = draft ?: saved.also { draft = it }
+    fun display(saved: ProfileDraft, defaultRelay: String = ""): ProfileDraft = draft ?: saved.copy(
+        relay = saved.relay.ifEmpty { defaultRelay }
+    ).also { draft = it }
     fun edit(value: ProfileDraft) { draft = value }
     fun current(): ProfileDraft = checkNotNull(draft)
     fun committed() { draft = null }
